@@ -63,7 +63,6 @@ import { CoreActionsDrawer } from './components/CoreActionsDrawer';
 import { PhaseStratagemsDrawer } from './components/PhaseStratagemsDrawer';
 import { PhaseActionChecklist } from './components/PhaseActionChecklist';
 import { RosterEditorModal } from './components/RosterEditorModal';
-import { LexTacticaLogo } from './components/LexTacticaLogo';
 import dornImg from './assets/dorn.png';
 import { WelcomeModal } from './components/WelcomeModal';
 import { GameSetupWizardModal } from './components/GameSetupWizardModal';
@@ -687,124 +686,126 @@ export const App: React.FC = () => {
     <div className="min-h-screen bg-[#0b0c10] text-slate-100 flex flex-col pb-20">
       {/* Top Navigation & Slim Roster Bar */}
       <header className="border-b border-slate-800/80 bg-[#0e1017]/95 z-30 backdrop-blur no-print">
-        <div className="max-w-5xl mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 font-serif tracking-wider text-sm font-bold text-amber-400">
-              <LexTacticaLogo className="w-5 h-5 text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]" />
-              <span>LEX TACTICA</span>
-            </div>
-            <span className="text-slate-700">|</span>
-            <button
-              type="button"
-              onClick={() => setRosterBannerExpanded((v) => !v)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-white hover:text-amber-300 transition"
-              title="Toggle full roster summary"
-            >
-              <span>{roster.name}</span>
-              <span className="text-slate-400 font-normal">
-                ({currentFaction?.name || roster.factionId} · {roster.totalPoints} pts)
-              </span>
-              {showExpandedRosterHeader ? (
-                <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
-              ) : (
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-              )}
-            </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Tactical Coach Toggle Pill & Rogal Dorn Easter Egg */}
-            <div className="relative inline-flex items-center gap-1">
-              {!isDornDismissed && (
-                <button
-                  type="button"
-                  onClick={handleDornClick}
-                  title="Lord Commander Rogal Dorn (Click to dismiss)"
-                  aria-label="Lord Commander Rogal Dorn"
-                  className={`relative z-10 -my-2.5 inline-flex items-center justify-center transition-all duration-700 ease-out focus:outline-none ${
-                    isDornFading
-                      ? 'opacity-0 scale-50 max-w-0 -mr-1 pointer-events-none'
-                      : 'opacity-100 scale-100 max-w-16 hover:scale-110 active:scale-95 cursor-pointer'
-                  }`}
-                >
-                  <img
-                    src={dornImg}
-                    alt="Rogal Dorn Coach"
-                    className="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] select-none pointer-events-none"
-                    draggable={false}
-                  />
-                </button>
-              )}
-
+        <div className="max-w-5xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Clippy Rogal Dorn Logo Easter Egg */}
+            {!isDornDismissed && (
               <button
                 type="button"
-                onClick={() => handleSetCoachMode(!coachState.enabled)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition ${
-                  coachState.enabled
-                    ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/50'
-                    : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-800'
+                onClick={handleDornClick}
+                title="Clippy Rogal Dorn (Click to dismiss)"
+                aria-label="Clippy Rogal Dorn"
+                className={`relative inline-flex items-center justify-center transition-all duration-700 ease-out focus:outline-none flex-shrink-0 ${
+                  isDornFading
+                    ? 'opacity-0 scale-50 max-w-0 -mr-3 pointer-events-none'
+                    : 'opacity-100 scale-100 max-w-[80px] hover:scale-115 active:scale-95 cursor-pointer'
                 }`}
-                title="Toggle Tactical Coach guidance (1-line phase prompts, auto-expanded first-visit sequences, and stat underline hints)"
               >
-                <GraduationCap className="w-3.5 h-3.5" />
-                <span>Coach: {coachState.enabled ? 'ON' : 'OFF'}</span>
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setIsWelcomeOpen(true)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition"
-              title="How to Play & 11th Edition Guide"
-            >
-              <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">How It Works</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleOpenEditorTab('setup')}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-100 border border-slate-700 transition"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
-              <span>Roster & Setup</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleNewGame}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition"
-              title="Reset game session to Pre-game"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">New Game</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition"
-              title="Print Playbook Cheat-Sheet"
-            >
-              <Printer className="w-3.5 h-3.5 text-slate-400" />
-              <span className="hidden md:inline">Print</span>
-            </button>
-
-            {offlineSyncStatus ? (
-              <span className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg">
-                {offlineSyncStatus}
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={handleDownloadAllOffline}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800"
-                title="Cache all 25 factions in IndexedDB for offline play"
-              >
-                <DownloadCloud className="w-3.5 h-3.5 text-amber-400" />
-                <span className="hidden lg:inline">Offline Sync</span>
+                <img
+                  src={dornImg}
+                  alt="Clippy Rogal Dorn Logo"
+                  className="w-[72px] h-[72px] sm:w-[76px] sm:h-[76px] object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.85)] select-none pointer-events-none"
+                  draggable={false}
+                />
               </button>
             )}
+
+            <div className="flex flex-col gap-1.5 justify-center min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-serif tracking-wider text-sm font-bold text-amber-400">
+                  LEX TACTICA
+                </span>
+                <span className="text-slate-700">|</span>
+                <button
+                  type="button"
+                  onClick={() => setRosterBannerExpanded((v) => !v)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-white hover:text-amber-300 transition truncate"
+                  title="Toggle full roster summary"
+                >
+                  <span className="truncate">{roster.name}</span>
+                  <span className="text-slate-400 font-normal">
+                    ({currentFaction?.name || roster.factionId} · {roster.totalPoints} pts)
+                  </span>
+                  {showExpandedRosterHeader ? (
+                    <ChevronUp className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                  )}
+                </button>
+              </div>
+
+              {/* Action Buttons with Coach Button left-aligned */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSetCoachMode(!coachState.enabled)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition ${
+                    coachState.enabled
+                      ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/50'
+                      : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-800'
+                  }`}
+                  title="Toggle Tactical Coach guidance (1-line phase prompts, auto-expanded first-visit sequences, and stat underline hints)"
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>Coach: {coachState.enabled ? 'ON' : 'OFF'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsWelcomeOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition"
+                  title="How to Play & 11th Edition Guide"
+                >
+                  <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden sm:inline">How It Works</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleOpenEditorTab('setup')}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-100 border border-slate-700 transition"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Roster & Setup</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleNewGame}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition"
+                  title="Reset game session to Pre-game"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">New Game</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition"
+                  title="Print Playbook Cheat-Sheet"
+                >
+                  <Printer className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="hidden md:inline">Print</span>
+                </button>
+
+                {offlineSyncStatus ? (
+                  <span className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg">
+                    {offlineSyncStatus}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleDownloadAllOffline}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800"
+                    title="Cache all 25 factions in IndexedDB for offline play"
+                  >
+                    <DownloadCloud className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="hidden lg:inline">Offline Sync</span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
