@@ -739,6 +739,36 @@ export const App: React.FC = () => {
           </div>
         </section>
 
+        {/* Prominent Match & Terrain Setup Banner (if match not yet configured) */}
+        {!session.matchSetup && (
+          <div className="bg-gradient-to-r from-amber-500/15 via-slate-900 to-amber-500/15 border-2 border-amber-500/50 rounded-xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4 animate-pulse-subtle">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 shrink-0">
+                <Swords className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                  <span>11th Edition Board & Match Setup</span>
+                  <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-extrabold">
+                    Recommended
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Select opponent, choose Force Dispositions, generate asymmetric missions, and view official Event Companion terrain layouts (A, B, C) with deployment measurements.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSetupWizardOpen(true)}
+              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs uppercase tracking-wider transition shadow-lg shadow-amber-500/20 flex items-center gap-2 shrink-0"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              <span>Launch Board & Mission Setup</span>
+            </button>
+          </div>
+        )}
+
         {/* Persistent Scoreboard HUD */}
         <ScoreboardHud
           session={session}
