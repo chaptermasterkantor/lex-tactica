@@ -2,6 +2,7 @@
   "name": "lex-tactica-40k-playbook",
   "private": true,
   "version": "1.0.0",
+  "license": "Prosperity-3.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
