@@ -89,7 +89,7 @@ export async function requestPersistentStorage(): Promise<boolean> {
 /**
  * Ensures `core.json` (Factions, Sources, Core Stratagems, 30 Core Actions) is loaded into IndexedDB.
  */
-export async function ensureCoreDataSynced(): Promise<{ lastUpdate: string; factions: Faction[] }> {
+export async function ensureCoreDataSynced(): Promise<{ lastUpdate: string; factions: Faction[]; lastSyncedAt?: number }> {
   await requestPersistentStorage();
 
   const res = await fetch('./data/wahapedia-11ed/core.json');
@@ -98,6 +98,7 @@ export async function ensureCoreDataSynced(): Promise<{ lastUpdate: string; fact
   }
   const coreBundle = (await res.json()) as CoreDataBundle;
   const existingLastUpdate = await db.meta.get('core_last_update');
+  const now = Date.now();
 
   if (existingLastUpdate?.value !== coreBundle.lastUpdate) {
     await db.transaction(
@@ -112,13 +113,34 @@ export async function ensureCoreDataSynced(): Promise<{ lastUpdate: string; fact
         await db.meta.put({
           key: 'core_last_update',
           value: coreBundle.lastUpdate,
-          updatedAt: Date.now(),
+          updatedAt: now,
+        });
+        await db.meta.put({
+          key: 'last_wahapedia_sync',
+          value: new Date(now).toISOString(),
+          updatedAt: now,
         });
       }
     );
+  } else {
+    // If not existing yet, record the initial sync time
+    const existingSyncMeta = await db.meta.get('last_wahapedia_sync');
+    if (!existingSyncMeta) {
+      await db.meta.put({
+        key: 'last_wahapedia_sync',
+        value: new Date(existingLastUpdate.updatedAt || now).toISOString(),
+        updatedAt: existingLastUpdate.updatedAt || now,
+      });
+    }
   }
 
-  return { lastUpdate: coreBundle.lastUpdate, factions: coreBundle.factions };
+  const lastSyncRecord = await db.meta.get('last_wahapedia_sync');
+
+  return {
+    lastUpdate: coreBundle.lastUpdate,
+    factions: coreBundle.factions,
+    lastSyncedAt: lastSyncRecord?.updatedAt ?? existingLastUpdate?.updatedAt ?? now,
+  };
 }
 
 /**
@@ -169,18 +191,25 @@ export async function ensureFactionDataSynced(factionId: string): Promise<void> 
  */
 export async function syncAllFactionsForOffline(
   onProgress?: (completed: number, total: number, factionName: string) => void
-): Promise<void> {
+): Promise<number> {
   const { factions } = await ensureCoreDataSynced();
   for (let i = 0; i < factions.length; i++) {
     const f = factions[i];
     onProgress?.(i + 1, factions.length, f.name);
     await ensureFactionDataSynced(f.id);
   }
+  const syncTime = Date.now();
   await db.meta.put({
     key: 'all_factions_offline_ready',
     value: 'true',
-    updatedAt: Date.now(),
+    updatedAt: syncTime,
   });
+  await db.meta.put({
+    key: 'last_wahapedia_sync',
+    value: new Date(syncTime).toISOString(),
+    updatedAt: syncTime,
+  });
+  return syncTime;
 }
 
 /**

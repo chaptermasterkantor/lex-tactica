@@ -62,6 +62,7 @@ import { GameSetupWizardModal } from './components/GameSetupWizardModal';
 export const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState('');
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [factions, setFactions] = useState<Faction[]>([]);
   const [allRosters, setAllRosters] = useState<SavedRoster[]>([]);
   const [roster, setRoster] = useState<SavedRoster | null>(null);
@@ -123,6 +124,9 @@ export const App: React.FC = () => {
         const coreInfo = await ensureCoreDataSynced();
         if (!mounted) return;
         setLastUpdate(coreInfo.lastUpdate.split(' ')[0] || coreInfo.lastUpdate);
+        if (coreInfo.lastSyncedAt) {
+          setLastSyncedAt(coreInfo.lastSyncedAt);
+        }
         setFactions(coreInfo.factions);
 
         const activeRoster = await ensureStarterRosterSeeded();
@@ -376,9 +380,10 @@ export const App: React.FC = () => {
   const handleDownloadAllOffline = async () => {
     setOfflineSyncStatus('Starting download of all 25 factions...');
     try {
-      await syncAllFactionsForOffline((done, total, name) => {
+      const syncTimestamp = await syncAllFactionsForOffline((done, total, name) => {
         setOfflineSyncStatus(`Caching ${done}/${total}: ${name}...`);
       });
+      setLastSyncedAt(syncTimestamp);
       setOfflineSyncStatus('✓ All 25 Factions cached in IndexedDB for 100% offline play!');
       setTimeout(() => setOfflineSyncStatus(null), 5000);
     } catch (err: any) {
@@ -951,9 +956,17 @@ export const App: React.FC = () => {
       </main>
 
       {/* Footer Attribution & Fan-Use Disclaimer */}
-      <footer className="border-t border-slate-900 bg-[#08090d] py-4 px-4 text-center text-[11px] text-slate-500 no-print">
-        Lex Tactica — Unofficial fan-made Warhammer 40,000 11th Edition Playbook PWA. Powered by
-        Wahapedia data export ({lastUpdate}). Not affiliated with or endorsed by Games Workshop.
+      <footer className="border-t border-slate-900 bg-[#08090d] py-4 px-4 text-center text-[11px] text-slate-500 no-print space-y-1">
+        <div>
+          Lex Tactica — Unofficial fan-made Warhammer 40,000 11th Edition Playbook PWA. Powered by
+          Wahapedia data export ({lastUpdate}).
+          {lastSyncedAt && (
+            <span className="ml-1 text-slate-400">
+              · Last synced: {new Date(lastSyncedAt).toLocaleDateString()} {new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+        </div>
+        <div>Not affiliated with or endorsed by Games Workshop.</div>
       </footer>
 
       {/* Pop-Out Drawers & Modals */}
