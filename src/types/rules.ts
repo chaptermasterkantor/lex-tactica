@@ -382,6 +382,7 @@ export interface GameSessionState {
   matchSetup?: MatchSetupConfig;
   activeMissionScores?: Record<string, boolean | number>;
   completedChecklistIds?: string[];
+  activeArmyRuleSelections?: Record<string, string>;
   stratagemLog: Array<{
     id: string;
     round: number;
@@ -393,6 +394,35 @@ export interface GameSessionState {
     timestamp: number;
   }>;
   updatedAt: number;
+}
+
+export interface MatchHistoryRecord {
+  id: string;
+  completedAt: number;
+  rosterId: string;
+  rosterName: string;
+  userFactionId: string;
+  userFactionName: string;
+  userDetachments: string[];
+  userDisposition?: ForceDisposition;
+  opponentName: string;
+  opponentFactionId: string;
+  opponentFactionName: string;
+  opponentDetachments: string[];
+  opponentDisposition?: ForceDisposition;
+  mapLayout?: string;
+  roundsPlayed: number;
+  userTotalVp: number;
+  userPrimaryVp: number;
+  userSecondaryVp: number;
+  opponentTotalVp: number;
+  opponentPrimaryVp: number;
+  opponentSecondaryVp: number;
+  result: 'victory' | 'defeat' | 'draw';
+  totalCpSpent: number;
+  survivingUnitsCount: number;
+  totalUnitsCount: number;
+  scoresByRound: Record<number, RoundScore>;
 }
 
 export interface ResolvedAbility extends Ability {

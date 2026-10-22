@@ -36,6 +36,8 @@ interface CompositeUnitCardProps {
   phaseStratagems: Stratagem[];
   userCp: number;
   forceCompact?: boolean;
+  coachEnabled?: boolean;
+  activeArmyRuleSelections?: Record<string, string>;
   onUpdateUnitState: (instanceId: string, updater: (prev: LiveUnitState) => LiveUnitState) => void;
   onUseStratagemOnUnit: (stratagem: Stratagem, unitInstanceId: string) => void;
   onOpenUnitStratagems?: (unitInstanceId: string) => void;
@@ -48,6 +50,8 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
   phaseStratagems,
   userCp,
   forceCompact = false,
+  coachEnabled = false,
+  activeArmyRuleSelections,
   onUpdateUnitState,
   onUseStratagemOnUnit,
   onOpenUnitStratagems,
@@ -59,10 +63,10 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
   const [showInlineEligibleStrats, setShowInlineEligibleStrats] = useState(false);
   const [deadlyDemisePrompt, setDeadlyDemisePrompt] = useState<string | null>(null);
 
-  // When forceCompact prop toggles globally (e.g. Expand Ready Units / Compact All Units), clear manual override
+  // Auto-collapse unit cards when forceCompact toggles OR when moving to a new phase/turn
   useEffect(() => {
     setManualExpanded(null);
-  }, [forceCompact]);
+  }, [forceCompact, currentPhase, currentTurn]);
 
   const {
     primaryUnit,
@@ -231,19 +235,68 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
       showAllDatasheetDetails);
 
   const primaryModel = primaryDatasheet.models[0];
+  const activeArmyRuleBadges = Object.entries(activeArmyRuleSelections ?? {}).filter(
+    ([, val]) => Boolean(val && val.trim())
+  );
+
+  // Deduplicate identical model stat rows (e.g., Intercessor Sergeant + Intercessor with identical M/T/Sv/Inv/W/Ld/OC)
+  const rawModelsWithRole = [
+    ...primaryDatasheet.models.map((m) => ({ m, roleTag: undefined as string | undefined })),
+    ...(attachedLeader
+      ? attachedLeader.datasheet.models.map((m) => ({ m, roleTag: 'Leader' as string | undefined }))
+      : []),
+    ...(attachedSupport
+      ? attachedSupport.datasheet.models.map((m) => ({ m, roleTag: 'Support' as string | undefined }))
+      : []),
+  ];
+
+  const deduplicatedModels: Array<{
+    names: string[];
+    m: (typeof primaryDatasheet.models)[number];
+    roleTag?: string;
+  }> = [];
+
+  for (const item of rawModelsWithRole) {
+    const { m, roleTag } = item;
+    const existing = deduplicatedModels.find(
+      (d) =>
+        d.roleTag === roleTag &&
+        d.m.M === m.M &&
+        d.m.T === m.T &&
+        d.m.Sv === m.Sv &&
+        (d.m.invSv || '') === (m.invSv || '') &&
+        d.m.W === m.W &&
+        d.m.Ld === m.Ld &&
+        d.m.OC === m.OC
+    );
+    if (existing) {
+      if (!existing.names.includes(m.name)) {
+        existing.names.push(m.name);
+      }
+    } else {
+      deduplicatedModels.push({ names: [m.name], m, roleTag });
+    }
+  }
 
   // ============================================================================
-  // COMPACT 1-LINE SUMMARY ROW (Used when unit is Marked Done or Compact View)
+  // COMPACT SUMMARY ROW (Used when unit is Marked Done or Compact View)
   // ============================================================================
   if (isCompactMode) {
+    const readyAccentBorder =
+      !isDestroyed && !isActivated
+        ? currentTurn === 'your_turn'
+          ? 'border-l-4 border-l-emerald-500'
+          : 'border-l-4 border-l-rose-500'
+        : '';
+
     return (
       <div
         id={`unit-card-${primaryUnit.instanceId}`}
-        className={`rounded-xl border px-3.5 py-2.5 transition-all flex flex-wrap items-center justify-between gap-2 ${
+        className={`rounded-xl border px-3.5 py-2.5 transition-all flex flex-wrap items-center justify-between gap-2.5 ${readyAccentBorder} ${
           isDestroyed
             ? 'bg-slate-950/40 border-rose-900/40 opacity-55'
             : isActivated
-            ? 'bg-slate-900/50 border-emerald-800/50 opacity-85'
+            ? 'bg-slate-900/50 border-emerald-800/50 opacity-75'
             : primaryLiveState.isBattleShocked
             ? 'bg-slate-900/90 border-amber-500/70'
             : 'bg-slate-900/85 border-slate-800 hover:border-slate-700'
@@ -254,17 +307,17 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
             <button
               type="button"
               onClick={handleToggleActivated}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition shrink-0 ${
+              className={`inline-flex items-center gap-1.5 px-3 min-h-[44px] rounded-lg text-xs font-bold border transition shrink-0 ${
                 isActivated
                   ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300 hover:bg-emerald-500/30'
-                  : 'bg-slate-950 border-slate-700 text-slate-300 hover:border-amber-400 hover:text-amber-300'
+                  : 'bg-slate-950 border-slate-700 text-slate-200 hover:border-amber-400 hover:text-amber-300'
               }`}
               title="Toggle phase activation status"
             >
               {isActivated ? (
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               ) : (
-                <Circle className="w-3.5 h-3.5 text-slate-400" />
+                <Circle className="w-4 h-4 text-slate-400" />
               )}
               <span>{getActionToggleLabel(isActivated)}</span>
             </button>
@@ -273,14 +326,14 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
           <button
             type="button"
             onClick={() => setManualExpanded(true)}
-            className="text-left font-bold text-sm text-white hover:text-amber-300 truncate transition"
+            className="text-left font-bold text-sm text-white hover:text-amber-300 truncate transition min-h-[44px] inline-flex items-center"
           >
             {composite.displayName}
           </button>
 
-          {/* Quick Inline Stats Pill */}
+          {/* Always-Visible Inline Stats Pill (Mobile & Desktop) */}
           {primaryModel && (
-            <div className="hidden sm:inline-flex items-center gap-2 px-2 py-0.5 rounded bg-slate-950/90 border border-slate-800 text-[11px] text-slate-300">
+            <div className="inline-flex flex-wrap items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950/90 border border-slate-800 text-xs tabular-nums text-slate-300">
               <span>
                 M <strong className="text-white">{primaryModel.M}</strong>
               </span>
@@ -310,32 +363,42 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
             </div>
           )}
 
+          {/* Active Army Rule Badges (e.g. Combat Doctrines / Oath) */}
+          {activeArmyRuleBadges.map(([ruleName, selection]) => (
+            <span
+              key={ruleName}
+              className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-200 border border-amber-500/50"
+            >
+              ✨ {selection}
+            </span>
+          ))}
+
           {/* Status & Alerts */}
           {primaryLiveState.isBattleShocked && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-200 border border-amber-500/50">
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-200 border border-amber-500/50">
               ⚡ Battle-Shocked
             </span>
           )}
           {composite.isInDamagedBracket && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-700">
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-700">
               ⚠️ Damaged
             </span>
           )}
           {lockedStratId && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-950/80 text-rose-200 border border-rose-700">
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-rose-950/80 text-rose-200 border border-rose-700">
               🔒 {lockedStratName || 'Stratagem Used'}
             </span>
           )}
         </div>
 
-        {/* Right Side: Quick Health Counter + Stratagems + Expand Button */}
+        {/* Right Side: Quick Health Counter (44x44px Touch Targets) + Stratagems + Expand Button */}
         <div className="flex items-center gap-2 ml-auto shrink-0">
           {/* Quick Wound / Model Counter */}
-          <div className="inline-flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs">
-            <span className="text-amber-300 font-semibold">
+          <div className="inline-flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg px-2 py-0.5 text-xs tabular-nums">
+            <span className="text-amber-300 font-semibold px-1">
               {primaryLiveState.remainingModels}/{primaryUnit.startingModels} Mdl
             </span>
-            <span className="text-slate-600">·</span>
+            <span className="text-slate-700">·</span>
             <button
               type="button"
               onClick={() =>
@@ -347,12 +410,13 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   -1
                 )
               }
-              className="p-0.5 text-emerald-300 hover:text-white"
-              title="-1 Wound"
+              className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-md text-emerald-300 hover:bg-slate-800 hover:text-white active:scale-95 transition"
+              title="-1 Wound (auto-removes model at 0W)"
+              aria-label="Decrease Wound"
             >
-              <Minus className="w-3 h-3" />
+              <Minus className="w-4 h-4" />
             </button>
-            <span className="text-emerald-300 font-bold">
+            <span className="text-emerald-300 font-bold min-w-[2rem] text-center text-sm">
               {primaryLiveState.currentModelWounds}W
             </span>
             <button
@@ -366,10 +430,11 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   1
                 )
               }
-              className="p-0.5 text-emerald-300 hover:text-white"
+              className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-md text-emerald-300 hover:bg-slate-800 hover:text-white active:scale-95 transition"
               title="+1 Wound"
+              aria-label="Increase Wound"
             >
-              <Plus className="w-3 h-3" />
+              <Plus className="w-4 h-4" />
             </button>
           </div>
 
@@ -377,10 +442,10 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
             <button
               type="button"
               onClick={handleOpenStratagems}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 transition"
+              className="inline-flex items-center justify-center gap-1 px-3 min-h-[44px] rounded-lg text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 transition"
               title="Open eligible Stratagems for this unit"
             >
-              <Zap className="w-3 h-3" />
+              <Zap className="w-3.5 h-3.5" />
               <span>{unitEligiblePhaseStrats.length}</span>
             </button>
           )}
@@ -388,10 +453,10 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
           <button
             type="button"
             onClick={() => setManualExpanded(true)}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
+            className="inline-flex items-center justify-center gap-1 px-3 min-h-[44px] rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
           >
             <span>Expand</span>
-            <ChevronDown className="w-3.5 h-3.5" />
+            <ChevronDown className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -418,12 +483,54 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
           <thead>
             <tr className="border-b border-slate-800 text-slate-400 bg-slate-900/70">
               <th className="py-1.5 px-2.5">Weapon</th>
-              <th className="py-1.5 px-2 text-center">Range</th>
-              <th className="py-1.5 px-2 text-center">A</th>
-              <th className="py-1.5 px-2 text-center">BS/WS</th>
-              <th className="py-1.5 px-2 text-center">S</th>
-              <th className="py-1.5 px-2 text-center">AP</th>
-              <th className="py-1.5 px-2 text-center">D</th>
+              <th className="py-1.5 px-2 text-center">
+                <KeywordBadge
+                  keyword="STAT_RNG"
+                  customLabel="Range"
+                  variant="stat_helper"
+                  coachUnderline={coachEnabled}
+                />
+              </th>
+              <th className="py-1.5 px-2 text-center">
+                <KeywordBadge
+                  keyword="STAT_A"
+                  customLabel="A"
+                  variant="stat_helper"
+                  coachUnderline={coachEnabled}
+                />
+              </th>
+              <th className="py-1.5 px-2 text-center">
+                <KeywordBadge
+                  keyword="STAT_BS_WS"
+                  customLabel="BS/WS"
+                  variant="stat_helper"
+                  coachUnderline={coachEnabled}
+                />
+              </th>
+              <th className="py-1.5 px-2 text-center">
+                <KeywordBadge
+                  keyword="STAT_S"
+                  customLabel="S"
+                  variant="stat_helper"
+                  coachUnderline={coachEnabled}
+                />
+              </th>
+              <th className="py-1.5 px-2 text-center">
+                <KeywordBadge
+                  keyword="STAT_AP"
+                  customLabel="AP"
+                  variant="stat_helper"
+                  coachUnderline={coachEnabled}
+                />
+              </th>
+              <th className="py-1.5 px-2 text-center">
+                <KeywordBadge
+                  keyword="STAT_D"
+                  customLabel="D"
+                  variant="stat_helper"
+                  coachUnderline={coachEnabled}
+                />
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -484,9 +591,20 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                       weapon.BS_WS
                     )}
                   </td>
-                  <td className="py-1.5 px-2 text-center font-semibold text-white">{weapon.S}</td>
-                  <td className="py-1.5 px-2 text-center text-slate-200">{weapon.AP}</td>
-                  <td className="py-1.5 px-2 text-center font-bold text-amber-300">{weapon.D}</td>
+                  <td className="py-1.5 px-2 text-center font-semibold text-white tabular-nums">
+                    {/^\d+$/.test(String(weapon.S).trim()) ? (
+                      <KeywordBadge
+                        keyword={`STRENGTH ${String(weapon.S).trim()}`}
+                        customLabel={String(weapon.S)}
+                        variant="strength_calc"
+                        coachUnderline={coachEnabled}
+                      />
+                    ) : (
+                      weapon.S
+                    )}
+                  </td>
+                  <td className="py-1.5 px-2 text-center text-slate-200 tabular-nums">{weapon.AP}</td>
+                  <td className="py-1.5 px-2 text-center font-bold text-amber-300 tabular-nums">{weapon.D}</td>
                 </tr>
               );
             })}
@@ -527,10 +645,19 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
             )}
           </div>
 
-          {/* Core & Faction Abilities Pills */}
+          {/* Core & Faction Abilities Pills + Active Army Rule Selection Badges */}
           {(composite.combinedCoreAbilities.length > 0 ||
-            primaryDatasheet.factionAbilities.length > 0) && (
+            primaryDatasheet.factionAbilities.length > 0 ||
+            activeArmyRuleBadges.length > 0) && (
             <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+              {activeArmyRuleBadges.map(([ruleName, selection]) => (
+                <span
+                  key={ruleName}
+                  className="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-amber-500/20 text-amber-200 border border-amber-500/50 shadow-sm"
+                >
+                  ✨ {ruleName}: {selection}
+                </span>
+              ))}
               {composite.combinedCoreAbilities.map((core) => {
                 const matchingAb = composite.combinedAbilities.find(
                   (a) => a.type === 'Core' && a.name === core
@@ -783,12 +910,12 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
       {/* Separate Casualty & Wound Pools (Bodyguard vs Attached Regular Leader vs Attached Support) */}
       <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2 no-print">
         {/* Bodyguard Pool */}
-        <div className="flex items-center justify-between bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2">
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
+            <div className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
               {attachedLeader || attachedSupport ? 'Bodyguard Pool' : 'Unit Health Pool'}
             </div>
-            <div className="text-xs font-bold text-white">
+            <div className="text-xs font-bold text-white tabular-nums">
               {primaryDatasheet.name}:{' '}
               <span className="text-amber-300">
                 {primaryLiveState.remainingModels}/{primaryUnit.startingModels} models
@@ -799,9 +926,9 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             {primaryUnit.startingModels > 1 && (
-              <div className="flex items-center border border-slate-700 rounded bg-slate-900 px-1 py-0.5 mr-1">
+              <div className="flex items-center border border-slate-700 rounded-lg bg-slate-900 px-1">
                 <button
                   type="button"
                   onClick={() =>
@@ -813,12 +940,12 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                       0
                     )
                   }
-                  className="p-0.5 text-slate-300 hover:text-white"
+                  className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-slate-200 hover:text-white active:scale-95 transition"
                   title="Remove 1 Model"
                 >
-                  <Minus className="w-3 h-3" />
+                  <Minus className="w-4 h-4" />
                 </button>
-                <span className="text-[10px] px-1 text-slate-400">Mdl</span>
+                <span className="text-[11px] px-1 text-slate-300 font-semibold">Mdl</span>
                 <button
                   type="button"
                   onClick={() =>
@@ -830,14 +957,14 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                       0
                     )
                   }
-                  className="p-0.5 text-slate-300 hover:text-white"
+                  className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-slate-200 hover:text-white active:scale-95 transition"
                   title="Restore 1 Model"
                 >
-                  <Plus className="w-3 h-3" />
+                  <Plus className="w-4 h-4" />
                 </button>
               </div>
             )}
-            <div className="flex items-center border border-emerald-800/60 rounded bg-emerald-950/40 px-1 py-0.5">
+            <div className="flex items-center border border-emerald-800/60 rounded-lg bg-emerald-950/40 px-1">
               <button
                 type="button"
                 onClick={() =>
@@ -849,12 +976,12 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                     -1
                   )
                 }
-                className="p-0.5 text-emerald-300 hover:text-white"
+                className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-emerald-300 hover:text-white active:scale-95 transition"
                 title="-1 Wound"
               >
-                <Minus className="w-3 h-3" />
+                <Minus className="w-4 h-4" />
               </button>
-              <span className="text-[10px] px-1 text-emerald-300 font-semibold">W</span>
+              <span className="text-xs px-1 text-emerald-300 font-bold">W</span>
               <button
                 type="button"
                 onClick={() =>
@@ -866,10 +993,10 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                     1
                   )
                 }
-                className="p-0.5 text-emerald-300 hover:text-white"
+                className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-emerald-300 hover:text-white active:scale-95 transition"
                 title="+1 Wound"
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -879,10 +1006,10 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
         {attachedLeader && (
           <div className="flex items-center justify-between bg-amber-950/20 border border-amber-700/40 rounded-lg px-3 py-2">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-amber-400 font-semibold">
+              <div className="text-[11px] uppercase tracking-wider text-amber-400 font-semibold">
                 Attached Leader
               </div>
-              <div className="text-xs font-bold text-white">
+              <div className="text-xs font-bold text-white tabular-nums">
                 {attachedLeader.datasheet.name}:{' '}
                 <span
                   className={
@@ -896,7 +1023,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                 </span>
               </div>
             </div>
-            <div className="flex items-center border border-amber-700/60 rounded bg-slate-900 px-1 py-0.5">
+            <div className="flex items-center border border-amber-700/60 rounded-lg bg-slate-900 px-1">
               <button
                 type="button"
                 onClick={() =>
@@ -908,11 +1035,11 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                     -1
                   )
                 }
-                className="p-0.5 text-amber-300 hover:text-white"
+                className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-amber-300 hover:text-white active:scale-95 transition"
               >
-                <Minus className="w-3 h-3" />
+                <Minus className="w-4 h-4" />
               </button>
-              <span className="text-[10px] px-1 text-amber-300 font-semibold">W</span>
+              <span className="text-xs px-1 text-amber-300 font-bold">W</span>
               <button
                 type="button"
                 onClick={() =>
@@ -924,9 +1051,9 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                     1
                   )
                 }
-                className="p-0.5 text-amber-300 hover:text-white"
+                className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-amber-300 hover:text-white active:scale-95 transition"
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -936,10 +1063,10 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
         {attachedSupport && (
           <div className="flex items-center justify-between bg-cyan-950/20 border border-cyan-700/40 rounded-lg px-3 py-2">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-cyan-400 font-semibold">
+              <div className="text-[11px] uppercase tracking-wider text-cyan-400 font-semibold">
                 Attached Support
               </div>
-              <div className="text-xs font-bold text-white">
+              <div className="text-xs font-bold text-white tabular-nums">
                 {attachedSupport.datasheet.name}:{' '}
                 <span
                   className={
@@ -953,7 +1080,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                 </span>
               </div>
             </div>
-            <div className="flex items-center border border-cyan-700/60 rounded bg-slate-900 px-1 py-0.5">
+            <div className="flex items-center border border-cyan-700/60 rounded-lg bg-slate-900 px-1">
               <button
                 type="button"
                 onClick={() =>
@@ -965,11 +1092,11 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                     -1
                   )
                 }
-                className="p-0.5 text-cyan-300 hover:text-white"
+                className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-cyan-300 hover:text-white active:scale-95 transition"
               >
-                <Minus className="w-3 h-3" />
+                <Minus className="w-4 h-4" />
               </button>
-              <span className="text-[10px] px-1 text-cyan-300 font-semibold">W</span>
+              <span className="text-xs px-1 text-cyan-300 font-bold">W</span>
               <button
                 type="button"
                 onClick={() =>
@@ -981,56 +1108,97 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                     1
                   )
                 }
-                className="p-0.5 text-cyan-300 hover:text-white"
+                className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-cyan-300 hover:text-white active:scale-95 transition"
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-4 h-4" />
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Model Stat Profiles Table (M | T | Sv | Inv | W | Ld | OC) */}
+      {/* Model Stat Profiles Table (Deduplicated, with Interactive Stat Helper Headers) */}
       <div className="mt-3 overflow-x-auto rounded-lg border border-slate-800 bg-slate-950/70">
         <table className="w-full text-xs text-left border-collapse">
           <thead>
             <tr className="border-b border-slate-800 text-slate-400 bg-slate-900/80">
-              <th className="py-1 px-2.5">Model Profile</th>
-              <th className="py-1 px-2 text-center">M</th>
-              <th className="py-1 px-2 text-center">T</th>
-              <th className="py-1 px-2 text-center">Sv</th>
-              <th className="py-1 px-2 text-center">Inv</th>
-              <th className="py-1 px-2 text-center">W</th>
-              <th className="py-1 px-2 text-center">Ld</th>
-              <th className="py-1 px-2 text-center">OC</th>
+              <th className="py-1.5 px-2.5">Model Profile</th>
+              <th className="py-1.5 px-2 text-center">
+                <KeywordBadge
+                  keyword="STAT_M"
+                  customLabel="M"
+                  variant="stat_helper"
+                  coachUnderline={coachEnabled}
+                />
+              </th>
+              <th className="py-1.5 px-2 text-center">
+                <KeywordBadge
+                  keyword="STAT_T"
+                  customLabel="T"
+                  variant="stat_helper"
+                  coachUnderline={coachEnabled}
+                />
+              </th>
+              <th className="py-1.5 px-2 text-center">
+                <KeywordBadge
+                  keyword="STAT_SV"
+                  customLabel="Sv"
+                  variant="stat_helper"
+                  coachUnderline={coachEnabled}
+                />
+              </th>
+              <th className="py-1.5 px-2 text-center">
+                <KeywordBadge
+                  keyword="STAT_INV"
+                  customLabel="Inv"
+                  variant="stat_helper"
+                  coachUnderline={coachEnabled}
+                />
+              </th>
+              <th className="py-1.5 px-2 text-center">
+                <KeywordBadge
+                  keyword="STAT_W"
+                  customLabel="W"
+                  variant="stat_helper"
+                  coachUnderline={coachEnabled}
+                />
+              </th>
+              <th className="py-1.5 px-2 text-center">
+                <KeywordBadge
+                  keyword="STAT_LD"
+                  customLabel="Ld"
+                  variant="stat_helper"
+                  coachUnderline={coachEnabled}
+                />
+              </th>
+              <th className="py-1.5 px-2 text-center">
+                <KeywordBadge
+                  keyword="STAT_OC"
+                  customLabel="OC"
+                  variant="stat_helper"
+                  coachUnderline={coachEnabled}
+                />
+              </th>
             </tr>
           </thead>
           <tbody>
-            {[
-              ...primaryDatasheet.models.map((m) => ({ m, roleTag: undefined })),
-              ...(attachedLeader
-                ? attachedLeader.datasheet.models.map((m) => ({ m, roleTag: 'Leader' }))
-                : []),
-              ...(attachedSupport
-                ? attachedSupport.datasheet.models.map((m) => ({ m, roleTag: 'Support' }))
-                : []),
-            ].map(({ m, roleTag }, idx) => (
-              <tr key={idx} className="border-b border-slate-800/50">
-                <td className="py-1 px-2.5 font-semibold text-slate-200">
-                  {m.name}{' '}
+            {deduplicatedModels.map(({ names, m, roleTag }, idx) => (
+              <tr key={idx} className="border-b border-slate-800/50 tabular-nums">
+                <td className="py-1.5 px-2.5 font-semibold text-slate-200">
+                  {names.join(' / ')}{' '}
                   {roleTag && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-amber-300 ml-1">
+                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 ml-1">
                       {roleTag}
                     </span>
                   )}
                 </td>
-                <td className="py-1 px-2 text-center text-slate-200">{m.M}</td>
-                <td className="py-1 px-2 text-center font-bold text-emerald-300">{m.T}</td>
-                <td className="py-1 px-2 text-center font-semibold text-white">{m.Sv}</td>
-                <td className="py-1 px-2 text-center font-bold text-cyan-300">{m.invSv || '-'}</td>
-                <td className="py-1 px-2 text-center font-semibold text-white">{m.W}</td>
-                <td className="py-1 px-2 text-center text-slate-200">{m.Ld}</td>
-                <td className="py-1 px-2 text-center font-bold text-amber-300">
+                <td className="py-1.5 px-2 text-center text-slate-200">{m.M}</td>
+                <td className="py-1.5 px-2 text-center font-bold text-emerald-300">{m.T}</td>
+                <td className="py-1.5 px-2 text-center font-semibold text-white">{m.Sv}</td>
+                <td className="py-1.5 px-2 text-center font-bold text-cyan-300">{m.invSv || '-'}</td>
+                <td className="py-1.5 px-2 text-center font-semibold text-white">{m.W}</td>
+                <td className="py-1.5 px-2 text-center text-slate-200">{m.Ld}</td>
+                <td className="py-1.5 px-2 text-center font-bold text-amber-300">
                   {primaryLiveState.isBattleShocked ? (
                     <span className="text-rose-400">0 (Shocked)</span>
                   ) : (

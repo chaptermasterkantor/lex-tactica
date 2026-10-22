@@ -11,7 +11,11 @@ import {
   parseSupportLeaderOverride,
 } from '../phaseNormalizer';
 import { getExpectedPointsForUnitCopy, validateRoster } from '../rosterValidator';
-import { buildCompositeUnits } from '../compositeUnitBuilder';
+import {
+  buildCompositeUnits,
+  classifyRuleForPhase,
+  isStratagemActiveInPhaseAndTurn,
+} from '../compositeUnitBuilder';
 import { createInitialGameSession, transitionGameSessionStep } from '../gameSessionEngine';
 import { lookupKeywordDefinition } from '../keywordGlossary';
 import { getRecommendedDispositions } from '../missionEngine';
@@ -980,4 +984,112 @@ describe('Milestone 2 & 3: 11th Ed Attachment Validator & Dynamic CompositeUnit 
     expect(recDisps.length).toBeGreaterThan(0);
   });
 });
+
+describe('Milestone 5: UX & Phase-Accuracy Engine Improvements', () => {
+  it('filters out opponent-shooting-phase-only stratagems (e.g. Armour of Contempt) during Your Turn Shooting phase', () => {
+    const armourOfContempt: Stratagem = {
+      id: 's_aoc',
+      factionId: 'SM',
+      name: 'ARMOUR OF CONTEMPT',
+      type: 'Battle Tactic',
+      category: 'Battle Tactic',
+      cpCost: 1,
+      legend: '',
+      rawTurn: 'Either player’s turn',
+      timing: 'either',
+      rawPhase: 'Shooting or Fight phase',
+      phases: ['shooting', 'fight'],
+      detachment: 'Gladius Task Force',
+      detachmentId: 'det_1',
+      description: '',
+      whenText: 'Your opponent’s Shooting phase or the Fight phase, just after an enemy unit has selected its targets.',
+      targetText: 'One Adeptus Astartes unit.',
+      effectText: 'Worsen AP by 1.',
+      isCore: false,
+    };
+
+    // In Your Turn Shooting phase, Armour of Contempt should NOT be active
+    expect(isStratagemActiveInPhaseAndTurn(armourOfContempt, 'shooting', 'your_turn')).toBe(false);
+    // In Opponent's Turn Shooting phase, it IS active
+    expect(isStratagemActiveInPhaseAndTurn(armourOfContempt, 'shooting', 'opponent_turn')).toBe(true);
+    // In either player's Fight phase, it IS active
+    expect(isStratagemActiveInPhaseAndTurn(armourOfContempt, 'fight', 'your_turn')).toBe(true);
+    expect(isStratagemActiveInPhaseAndTurn(armourOfContempt, 'fight', 'opponent_turn')).toBe(true);
+  });
+
+  it('classifies rules into action_trigger, passive_buff, or hidden per phase', () => {
+    // Advance/Charge re-roll rule should be hidden during Shooting phase
+    expect(
+      classifyRuleForPhase(
+        'Swift Assault',
+        'You can re-roll Advance and Charge rolls made for this unit.',
+        ['any'],
+        'either',
+        'shooting',
+        'your_turn'
+      )
+    ).toBe('hidden');
+
+    // Passive shooting buff should be classified as passive_buff in Shooting phase
+    expect(
+      classifyRuleForPhase(
+        'Fire Discipline',
+        'While this model is leading a unit, ranged weapons equipped by models in that unit have the [SUSTAINED HITS 1] ability.',
+        ['shooting'],
+        'either',
+        'shooting',
+        'your_turn'
+      )
+    ).toBe('passive_buff');
+
+    // Explicit phase trigger should be classified as action_trigger
+    expect(
+      classifyRuleForPhase(
+        'Oath of Moment',
+        'At the start of your Command phase, select one unit from your opponent’s army.',
+        ['command'],
+        'your_turn',
+        'command',
+        'your_turn'
+      )
+    ).toBe('action_trigger');
+  });
+
+  it('auto-credits +1 CP when jumping non-linearly from pre_game into a Round 1 post-Command phase', () => {
+    const dummyRoster: SavedRoster = {
+      id: 'r_jump',
+      name: 'Jump Test',
+      factionId: 'SM',
+      battleSize: 'strike_force',
+      detachmentIds: [],
+      units: [],
+      totalPoints: 0,
+      totalDetachmentPoints: 0,
+      updatedAt: Date.now(),
+    };
+    const initial = createInitialGameSession(dummyRoster, 'user');
+    expect(initial.currentPhase).toBe('pre_game');
+    expect(initial.userCp).toBe(0);
+
+    const jumpedToShooting = transitionGameSessionStep(initial, {
+      battleRound: 1,
+      currentTurn: 'your_turn',
+      currentPhase: 'shooting',
+      label: 'Shooting Phase',
+    });
+    expect(jumpedToShooting.userCp).toBe(1);
+    expect(jumpedToShooting.opponentCp).toBe(1);
+  });
+
+  it('calculates exact 11th Edition Wound Roll breakpoints for STRENGTH X lookups', () => {
+    const s8 = lookupKeywordDefinition('STRENGTH 8');
+    expect(s8).toBeDefined();
+    expect(s8?.category).toBe('core_rule');
+    expect(s8?.summary).toContain('Wounds T8 on 4+');
+    expect(s8?.summary).toContain('T≤4 on 2+');
+    expect(s8?.summary).toContain('T16+ on 6+');
+    expect(s8?.description).toContain('2+');
+  });
+});
+
 

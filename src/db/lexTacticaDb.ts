@@ -8,6 +8,7 @@ import type {
   Faction,
   FactionDataBundle,
   GameSessionState,
+  MatchHistoryRecord,
   RulesSource,
   SavedRoster,
   Stratagem,
@@ -32,6 +33,7 @@ export class LexTacticaDatabase extends Dexie {
   enhancements!: Table<Enhancement, string>;
   savedRosters!: Table<SavedRoster, string>;
   gameSessions!: Table<GameSessionState, string>;
+  matchHistory!: Table<MatchHistoryRecord, string>;
 
   constructor() {
     super('LexTactica11thEdDB');
@@ -78,6 +80,10 @@ export class LexTacticaDatabase extends Dexie {
         });
         await tx.table('gameSessions').delete('session_starter_crimson_fists_2k');
       }
+    });
+
+    this.version(5).stores({
+      matchHistory: 'id, completedAt, userFactionId, opponentFactionId, result',
     });
   }
 }

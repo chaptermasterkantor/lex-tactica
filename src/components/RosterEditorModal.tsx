@@ -9,6 +9,7 @@ import {
   Download,
   Users,
   ShieldCheck,
+  Trophy,
 } from 'lucide-react';
 import editionRules from '../config/editionRules.json';
 import type {
@@ -17,6 +18,7 @@ import type {
   Detachment,
   Enhancement,
   Faction,
+  MatchHistoryRecord,
   RosterUnit,
   SavedRoster,
   UnitBattlefieldStatus,
@@ -33,23 +35,24 @@ import {
 } from '../importers/rosterImporter';
 import {
   KNOWN_SPACE_MARINE_CHAPTERS,
-  isDarkAngelsRoster,
 } from '../engine/chapterKeywordRules';
 
 interface RosterEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialTab?: 'setup' | 'import' | 'rosters';
+  initialTab?: 'setup' | 'import' | 'rosters' | 'history';
   roster: SavedRoster;
   allRosters: SavedRoster[];
   factions: Faction[];
   datasheets: Datasheet[];
   detachments: Detachment[];
   enhancements: Enhancement[];
+  matchHistory?: MatchHistoryRecord[];
   onSaveRoster: (updated: SavedRoster) => Promise<void>;
   onSelectRoster: (rosterId: string) => Promise<void>;
   onDeleteRoster: (rosterId: string) => Promise<void>;
   onChangeFaction: (factionId: string) => Promise<void>;
+  onDeleteMatchHistory?: (id: string) => Promise<void>;
 }
 
 export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
@@ -62,12 +65,14 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   datasheets,
   detachments,
   enhancements,
+  matchHistory = [],
   onSaveRoster,
   onSelectRoster,
   onDeleteRoster,
   onChangeFaction,
+  onDeleteMatchHistory,
 }) => {
-  const [activeTab, setActiveTab] = useState<'setup' | 'import' | 'rosters'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'setup' | 'import' | 'rosters' | 'history'>(initialTab);
   const [importFactionId, setImportFactionId] = useState(roster.factionId);
   const [pasteText, setPasteText] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
@@ -92,8 +97,6 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     detachmentsById,
     enhancementsById
   );
-
-  const isDaArmy = isDarkAngelsRoster(roster, datasheetsById);
 
   const battleSizeConfig =
     editionRules.battleSizes[roster.battleSize] ?? editionRules.battleSizes.strike_force;
@@ -267,11 +270,11 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-800 bg-slate-900/40 px-6 gap-4">
+        <div className="flex overflow-x-auto border-b border-slate-800 bg-slate-900/40 px-6 gap-4">
           <button
             type="button"
             onClick={() => setActiveTab('setup')}
-            className={`py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition ${
+            className={`py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition whitespace-nowrap ${
               activeTab === 'setup'
                 ? 'border-amber-400 text-amber-300'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -282,7 +285,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('import')}
-            className={`py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition ${
+            className={`py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition whitespace-nowrap ${
               activeTab === 'import'
                 ? 'border-amber-400 text-amber-300'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -293,13 +296,25 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('rosters')}
-            className={`py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition ${
+            className={`py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition whitespace-nowrap ${
               activeTab === 'rosters'
                 ? 'border-amber-400 text-amber-300'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             3. Saved Device Rosters ({allRosters.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition whitespace-nowrap inline-flex items-center gap-1.5 ${
+              activeTab === 'history'
+                ? 'border-amber-400 text-amber-300'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span>4. Match History ({matchHistory.length})</span>
           </button>
         </div>
 
@@ -342,24 +357,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                   />
                 </div>
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[11px] uppercase text-slate-400 font-semibold">
-                      Sub-Faction / Chapter
-                    </label>
-                    {roster.factionId === 'SM' && (
-                      <span
-                        className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                          isDaArmy
-                            ? 'bg-emerald-950/70 border border-emerald-600/50 text-emerald-300'
-                            : 'bg-slate-800 text-slate-400'
-                        }`}
-                      >
-                        {isDaArmy
-                          ? 'Dark Angels (Deathwing & Ravenwing active)'
-                          : 'Codex Standard (Deathwing & Ravenwing suppressed)'}
-                      </span>
-                    )}
-                  </div>
+                  <label className="block text-[11px] uppercase text-slate-400 font-semibold mb-1">
+                    Sub-Faction / Chapter
+                  </label>
                   <input
                     type="text"
                     list={roster.factionId === 'SM' ? 'sm-chapters-list' : undefined}
@@ -851,6 +851,81 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {activeTab === 'history' && (
+            <div className="space-y-3">
+              {matchHistory.length === 0 ? (
+                <div className="p-8 rounded-xl bg-slate-900/60 border border-slate-800 text-center space-y-2">
+                  <Trophy className="w-8 h-8 text-slate-600 mx-auto" />
+                  <div className="text-sm font-bold text-slate-300">No Completed Matches Yet</div>
+                  <div className="text-xs text-slate-500">
+                    Use the &ldquo;Finish Match&rdquo; button in the Scoreboard HUD or at Round 5 End of Round to save your After-Action Battle Reports locally.
+                  </div>
+                </div>
+              ) : (
+                matchHistory.map((m) => {
+                  const badgeStyle =
+                    m.result === 'victory'
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
+                      : m.result === 'defeat'
+                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/50'
+                        : 'bg-amber-500/20 text-amber-300 border-amber-500/50';
+                  return (
+                    <div
+                      key={m.id}
+                      className="p-4 rounded-xl border border-slate-800 bg-slate-900/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border ${badgeStyle}`}
+                          >
+                            {m.result}
+                          </span>
+                          <span className="text-sm font-bold text-white">
+                            {m.rosterName} ({m.userFactionName})
+                          </span>
+                          <span className="text-xs text-slate-500">vs.</span>
+                          <span className="text-sm font-bold text-rose-300">
+                            {m.opponentName || m.opponentFactionName}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {new Date(m.completedAt).toLocaleDateString()} ·{' '}
+                          {m.userDisposition || 'Standard Mission'}
+                          {m.mapLayout ? ` (Layout ${m.mapLayout})` : ''} · {m.roundsPlayed}{' '}
+                          Rounds · {m.survivingUnitsCount}/{m.totalUnitsCount} Units Survived ·{' '}
+                          {m.totalCpSpent} CP Spent
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <div className="text-lg font-black text-white">
+                            <span className="text-amber-300">{m.userTotalVp}</span>
+                            <span className="text-slate-600 mx-1">:</span>
+                            <span className="text-rose-300">{m.opponentTotalVp}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            P {m.userPrimaryVp} / S {m.userSecondaryVp}
+                          </div>
+                        </div>
+                        {onDeleteMatchHistory && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteMatchHistory(m.id)}
+                            className="p-2 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800"
+                            title="Delete match record"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
         </div>

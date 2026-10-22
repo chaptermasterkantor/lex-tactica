@@ -5,8 +5,16 @@ import { lookupKeywordDefinition } from '../engine/keywordGlossary';
 
 interface KeywordBadgeProps {
   keyword: string;
-  variant?: 'unit_keyword' | 'weapon_ability' | 'core_ability' | 'faction_ability';
+  variant?:
+    | 'unit_keyword'
+    | 'weapon_ability'
+    | 'core_ability'
+    | 'faction_ability'
+    | 'stat_helper'
+    | 'strength_calc';
   customDescription?: string;
+  customLabel?: string;
+  coachUnderline?: boolean;
 }
 
 interface TooltipPosition {
@@ -19,6 +27,8 @@ export const KeywordBadge: React.FC<KeywordBadgeProps> = ({
   keyword,
   variant = 'unit_keyword',
   customDescription,
+  customLabel,
+  coachUnderline = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [pinnedByClick, setPinnedByClick] = useState(false);
@@ -135,15 +145,29 @@ export const KeywordBadge: React.FC<KeywordBadgeProps> = ({
 
   const badgeClasses =
     variant === 'weapon_ability'
-      ? 'text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-200/95 border border-amber-500/30 font-medium cursor-help transition inline-flex items-center gap-0.5'
+      ? 'text-[11px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-200/95 border border-amber-500/30 font-medium cursor-help transition inline-flex items-center gap-0.5'
       : variant === 'core_ability'
-      ? 'text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-amber-500/50 cursor-help transition inline-flex items-center gap-1'
+      ? 'text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-amber-500/50 cursor-help transition inline-flex items-center gap-1'
       : variant === 'faction_ability'
-      ? 'text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-help transition inline-flex items-center gap-1'
+      ? 'text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-help transition inline-flex items-center gap-1'
+      : variant === 'stat_helper'
+      ? `inline-flex items-center gap-0.5 cursor-help hover:text-amber-300 transition ${
+          coachUnderline ? 'border-b border-dotted border-amber-400/60' : ''
+        }`
+      : variant === 'strength_calc'
+      ? `inline-flex items-center justify-center px-1.5 py-0.5 rounded font-bold text-emerald-300 hover:bg-emerald-950/70 hover:text-emerald-200 cursor-help transition ${
+          coachUnderline
+            ? 'border border-dotted border-emerald-500/60 bg-emerald-950/30'
+            : ''
+        }`
       : 'px-1.5 py-0.5 rounded bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/50 text-slate-300 hover:text-amber-200 cursor-help transition inline-flex items-center gap-0.5';
 
   const displayLabel =
-    variant === 'weapon_ability' ? `[${keyword.replace(/^\[|\]$/g, '')}]` : keyword;
+    customLabel !== undefined
+      ? customLabel
+      : variant === 'weapon_ability'
+      ? `[${keyword.replace(/^\[|\]$/g, '')}]`
+      : keyword;
 
   const categoryLabel =
     variant === 'weapon_ability'
@@ -152,6 +176,8 @@ export const KeywordBadge: React.FC<KeywordBadgeProps> = ({
       ? 'Core Ability'
       : variant === 'faction_ability'
       ? 'Faction Ability'
+      : variant === 'stat_helper' || variant === 'strength_calc'
+      ? 'Tabletop Coach Helper'
       : definition?.category === 'weapon'
       ? 'Weapon Rule'
       : definition?.category === 'core_rule'

@@ -675,3 +675,179 @@ export function isActiveInPhaseAndTurn(
 
   return itemTiming === 'either' || itemTiming === currentTurn;
 }
+
+/**
+ * Turn-accurate stratagem filter that inspects `whenText` / `description` to prevent
+ * multi-phase stratagems tagged `timing: 'either'` (e.g., Armour of Contempt:
+ * "Your opponent's Shooting phase or the Fight phase") from leaking into Your Turn's
+ * Shooting or Movement phase.
+ */
+export function isStratagemActiveInPhaseAndTurn(
+  strat: Pick<Stratagem, 'phases' | 'timing' | 'whenText' | 'description' | 'name'>,
+  currentPhase: Phase,
+  currentTurn: 'your_turn' | 'opponent_turn'
+): boolean {
+  if (!isActiveInPhaseAndTurn(strat.phases, strat.timing, currentPhase, currentTurn)) {
+    return false;
+  }
+
+  const whenRaw = (strat.whenText || strat.description || '')
+    .replace(/’/g, "'")
+    .toLowerCase();
+
+  if (currentPhase === 'shooting') {
+    const mentionsOppShooting = /opponent's shooting phase/.test(whenRaw);
+    const mentionsYourOrEitherShooting =
+      /your shooting phase|either player's shooting phase|any phase/.test(whenRaw);
+    if (currentTurn === 'your_turn' && mentionsOppShooting && !mentionsYourOrEitherShooting) {
+      return false;
+    }
+    if (currentTurn === 'opponent_turn' && /your shooting phase/.test(whenRaw) && !mentionsOppShooting && !/any phase/.test(whenRaw)) {
+      return false;
+    }
+  }
+
+  if (currentPhase === 'movement') {
+    const mentionsOppMovement = /opponent's movement phase/.test(whenRaw);
+    const mentionsYourOrEitherMovement =
+      /your movement phase|either player's movement phase|any phase/.test(whenRaw);
+    if (currentTurn === 'your_turn' && mentionsOppMovement && !mentionsYourOrEitherMovement) {
+      return false;
+    }
+    if (currentTurn === 'opponent_turn' && /your movement phase/.test(whenRaw) && !mentionsOppMovement && !/any phase/.test(whenRaw)) {
+      return false;
+    }
+  }
+
+  if (currentPhase === 'charge') {
+    const mentionsOppCharge = /opponent's charge phase/.test(whenRaw);
+    const mentionsYourOrEitherCharge =
+      /your charge phase|either player's charge phase|any phase/.test(whenRaw);
+    if (currentTurn === 'your_turn' && mentionsOppCharge && !mentionsYourOrEitherCharge) {
+      return false;
+    }
+    if (currentTurn === 'opponent_turn' && /your charge phase/.test(whenRaw) && !mentionsOppCharge && !/any phase/.test(whenRaw)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Classifies an Army Rule or Detachment Ability for `PhaseActionChecklist.tsx` so that:
+ * - `'action_trigger'`: Rules with an explicit actionable trigger in `currentPhase` get a `[ ]` checkbox.
+ * - `'passive_buff'`: Rules that provide passive buffs relevant to `currentPhase` (or round-wide) render as compact reference pills without checkboxes.
+ * - `'hidden'`: Rules whose mechanics belong strictly to another phase (e.g., "re-roll advance rolls" during Shooting, or "At the start of your Command phase, select..." during Movement) are hidden.
+ */
+export function classifyRuleForPhase(
+  name: string,
+  description: string,
+  phases: Phase[],
+  timing: TurnTiming,
+  currentPhase: Phase,
+  currentTurn: 'your_turn' | 'opponent_turn'
+): 'action_trigger' | 'passive_buff' | 'hidden' {
+  if (!isActiveInPhaseAndTurn(phases, timing, currentPhase, currentTurn)) {
+    return 'hidden';
+  }
+
+  const text = `${name} ${description}`.replace(/’/g, "'").toLowerCase();
+
+  // Detect explicit Command-phase selection rules (e.g., Combat Doctrines, Oath of Moment, Assault Mastery)
+  const isCommandSelectionRule =
+    /at the start of your command phase|in your command phase|select one .* doctrine|additional time per battle/.test(
+      text
+    );
+  const isStartOfRoundSelectionRule = /at the start of the battle round/.test(text);
+
+  // Detect strictly movement-only passive rules (e.g., "re-roll advance rolls" without shooting/charge effects)
+  const isAdvanceOrMoveOnly =
+    /re-roll advance rolls|add \d+" to the move characteristic/.test(text) &&
+    !/shoot|ranged|charge|melee|fight|wound|hit roll/.test(text);
+
+  // Detect Advance + Charge only rules (no shooting or melee combat effects)
+  const isAdvanceOrChargeOnly =
+    /re-roll advance|advance and charge|charge rolls/.test(text) &&
+    !/shoot|ranged|melee|fight|wound|hit roll/.test(text);
+
+  // Detect whether the rule requires an active decision/trigger vs. being a passive stat/weapon buff
+  const hasExplicitActionTrigger =
+    /at the start of|in your .* phase|in the .* phase|at the end of|select one|once per|roll one d6|after this unit has shot|after this unit has fought/.test(
+      text
+    );
+
+  if (currentPhase === 'command') {
+    if (currentTurn === 'your_turn' && (isCommandSelectionRule || phases.includes('command'))) {
+      return 'action_trigger';
+    }
+    return isAdvanceOrMoveOnly || isAdvanceOrChargeOnly ? 'hidden' : 'passive_buff';
+  }
+
+  if (currentPhase === 'start_of_round') {
+    if (isStartOfRoundSelectionRule || phases.includes('start_of_round')) {
+      return 'action_trigger';
+    }
+    return 'hidden';
+  }
+
+  if (currentPhase === 'movement') {
+    if (isCommandSelectionRule && !/advance|fall back|move/.test(text)) {
+      return 'hidden';
+    }
+    if (phases.includes('movement') && !phases.includes('any') && hasExplicitActionTrigger) {
+      return 'action_trigger';
+    }
+    return 'passive_buff';
+  }
+
+  if (currentPhase === 'shooting') {
+    if (isAdvanceOrMoveOnly || isAdvanceOrChargeOnly) {
+      return 'hidden';
+    }
+    if (
+      isCommandSelectionRule &&
+      !/ranged|shoot|assault doctrine|devastator doctrine|tactical doctrine|hit roll|wound roll/.test(
+        text
+      )
+    ) {
+      return 'hidden';
+    }
+    if (isCommandSelectionRule) {
+      // e.g., Combat Doctrines is selected in Command Phase; in Shooting Phase it is a passive reference, NOT a checkbox action
+      return 'passive_buff';
+    }
+    if (phases.includes('shooting') && !phases.includes('any') && hasExplicitActionTrigger) {
+      return 'action_trigger';
+    }
+    return 'passive_buff';
+  }
+
+  if (currentPhase === 'charge') {
+    if (isAdvanceOrMoveOnly) {
+      return 'hidden';
+    }
+    if (isCommandSelectionRule) {
+      return /charge/.test(text) ? 'passive_buff' : 'hidden';
+    }
+    if (phases.includes('charge') && !phases.includes('any') && hasExplicitActionTrigger) {
+      return 'action_trigger';
+    }
+    return 'passive_buff';
+  }
+
+  if (currentPhase === 'fight') {
+    if (isAdvanceOrMoveOnly || isAdvanceOrChargeOnly) {
+      return 'hidden';
+    }
+    if (isCommandSelectionRule) {
+      return /melee|fight|hit roll|wound roll/.test(text) ? 'passive_buff' : 'hidden';
+    }
+    if (phases.includes('fight') && !phases.includes('any') && hasExplicitActionTrigger) {
+      return 'action_trigger';
+    }
+    return 'passive_buff';
+  }
+
+  return 'passive_buff';
+}

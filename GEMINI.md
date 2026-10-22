@@ -86,3 +86,13 @@ All 20 CSV files at `https://wahapedia.ru/wh40k11ed/<File>.csv` use pipe (`|`) d
 - **`npm run sync-maps`:** Synchronizes updated 5×5 Force Disposition Mission Matrix (`src/config/missions11ed.json`), 18 secondary mission cards, and all 46 official 11th Edition Event Companion map JPEGs (`public/data/wahapedia-11ed/maps/`).
 - **`python scripts/extract-maps-from-pdf.py`:** Automates image extraction from any tournament PDF without manual cropping.
 - **`npm run sync-data`:** Master build command that synchronizes Wahapedia datasheets/detachments and runs the mission & map sync engine.
+
+---
+
+## 7. UI/UX Design Philosophy & Tabletop Ergonomics Guardrails
+- **Canonical Reference:** All UI/UX changes must strictly follow **[`DESIGN_PHILOSOPHY.md`](file:///c:/agy/Lex%20Tactica/DESIGN_PHILOSOPHY.md)**.
+- **Non-Negotiable UX Invariants:**
+  1. **Single Unified Cockpit (No Mode-Split Drift):** Never hide functional controls or change spatial layouts between beginner and veteran users. Use the `🎓 Coach: ON / OFF` scaffolding layer (with automatic local decay) to control default expansion states, 1-line phase prompts, and tap-to-explain stat underlines.
+  2. **Thumb-Zone Primacy & 44×44px Touch Targets:** Keep primary phase/CP/stratagem navigation in the Sticky Bottom Thumb-Bar on mobile viewports, and enforce `min-h-[44px] min-w-[44px]` hit areas on all steppers and primary action controls.
+  3. **Strict Phase & Turn Truthfulness:** Never display action checkboxes (`[ ]`) for passive buffs or out-of-phase rules in `PhaseActionChecklist.tsx`, and filter multi-phase stratagems (`whenText`) so opponent-turn stratagems never leak into `Your Turn`.
+  4. **Mobile Glanceability & Temporal Disclosure:** Keep `M · T · Sv · Inv · OC` and active Army Rule badges visible on collapsed mobile unit cards; auto-collapse expanded unit cards on phase/turn transitions; auto-collapse Scoreboard mission details during combat phases (`Movement`–`Fight`).

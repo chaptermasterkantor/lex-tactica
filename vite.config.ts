@@ -30,6 +30,19 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
         maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            urlPattern: /\/data\/wahapedia-11ed\/maps\/.*\.jpg$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'lex-tactica-terrain-maps-v1',
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 60 * 60 * 24 * 90, // 90 days
+              },
+            },
+          },
+        ],
       },
     }),
   ],

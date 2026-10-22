@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   CheckSquare,
   Square,
@@ -10,9 +10,10 @@ import {
   HelpCircle,
   MapPin,
   Crown,
+  Shield,
 } from 'lucide-react';
 import editionRules from '../config/editionRules.json';
-import { isActiveInPhaseAndTurn } from '../engine/compositeUnitBuilder';
+import { classifyRuleForPhase, isActiveInPhaseAndTurn } from '../engine/compositeUnitBuilder';
 import type {
   Ability,
   CompositeUnit,
@@ -29,6 +30,10 @@ interface PhaseActionChecklistProps {
   selectedDetachments: Detachment[];
   coreActions: CoreAction[];
   completedChecklistIds: string[];
+  coachEnabled?: boolean;
+  hasSeenPhaseBefore?: boolean;
+  activeArmyRuleSelections?: Record<string, string>;
+  onSelectArmyRuleOption?: (ruleName: string, selection: string) => void;
   onToggleChecklistItem: (itemId: string) => void;
   onUpdateUnitState: (instanceId: string, updater: (prev: LiveUnitState) => LiveUnitState) => void;
   onOpenCoreAction: (actionName: string) => void;
@@ -76,19 +81,57 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
   selectedDetachments,
   coreActions,
   completedChecklistIds,
+  coachEnabled = false,
+  hasSeenPhaseBefore = true,
+  activeArmyRuleSelections = {},
+  onSelectArmyRuleOption,
   onToggleChecklistItem,
   onUpdateUnitState,
   onOpenCoreAction,
 }) => {
   const [expandedRuleIds, setExpandedRuleIds] = useState<Record<string, boolean>>({});
-  const [showSequenceGuide, setShowSequenceGuide] = useState(false);
+  const [showSequenceGuide, setShowSequenceGuide] = useState(
+    Boolean(coachEnabled && !hasSeenPhaseBefore)
+  );
+  const [showPassiveBuffs, setShowPassiveBuffs] = useState(false);
+
+  // Auto-expand sequence guide the first time a phase is visited when Tactical Coach is ON,
+  // and auto-collapse once the phase has already been seen (Scaffolding Decay).
+  useEffect(() => {
+    setShowSequenceGuide(Boolean(coachEnabled && !hasSeenPhaseBefore));
+  }, [currentPhase, currentTurn, coachEnabled, hasSeenPhaseBefore]);
 
   const toggleExpandRule = (id: string) => {
     setExpandedRuleIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // 1. Dynamically extract active Faction / Army Rules from Wahapedia datasheets on the roster
-  const activeFactionRules: Ability[] = [];
+  const getArmyRulePresets = (ruleName: string, description: string): string[] => {
+    const lower = `${ruleName} ${description}`.toLowerCase();
+    if (lower.includes('combat doctrines')) {
+      return [
+        'Devastator Doctrine (Adv + Shoot)',
+        'Tactical Doctrine (Fall Back + Shoot/Charge)',
+        'Assault Doctrine (Adv + Charge)',
+      ];
+    }
+    if (lower.includes('oath of moment')) {
+      return ['Oath Target Selected (Re-roll Hits)', 'Oath + Codex (+1 to Wound)'];
+    }
+    if (lower.includes('waaagh')) {
+      return ['Waaagh! Active (5+ Invuln, Adv+Charge, +1S/+1A)'];
+    }
+    if (lower.includes('shadow in the warp')) {
+      return ['Shadow Unleashed (Enemy Battle-shock Test)'];
+    }
+    if (lower.includes('blessings of khorne')) {
+      return ['Warp Blades (Lethal Hits)', 'Martial Excellence (Sustained Hits 1)', 'Total Carnage (Fight on Death 4+)'];
+    }
+    return ['Active This Round'];
+  };
+
+  // 1. Dynamically extract and classify Faction / Army Rules from Wahapedia datasheets on the roster
+  const actionFactionRules: Ability[] = [];
+  const passiveFactionRules: Ability[] = [];
   const seenFactionRuleNames = new Set<string>();
 
   for (const comp of compositeUnits) {
@@ -100,18 +143,47 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
       if (currentPhase !== 'pre_game' && MUSTER_ONLY_ABILITY_NAMES.has(lowerName)) continue;
       if (seenFactionRuleNames.has(lowerName)) continue;
 
-      if (isActiveInPhaseAndTurn(ab.phases, ab.timing, currentPhase, currentTurn)) {
+      const classification = classifyRuleForPhase(
+        ab.name,
+        ab.description,
+        ab.phases,
+        ab.timing,
+        currentPhase,
+        currentTurn
+      );
+      if (classification === 'action_trigger') {
         seenFactionRuleNames.add(lowerName);
-        activeFactionRules.push(ab);
+        actionFactionRules.push(ab);
+      } else if (classification === 'passive_buff') {
+        seenFactionRuleNames.add(lowerName);
+        passiveFactionRules.push(ab);
       }
     }
   }
 
-  // 2. Dynamically extract active Detachment Rules from Wahapedia Detachment_abilities.csv
-  const activeDetachmentAbilities = selectedDetachments.flatMap((d) =>
-    d.abilities.filter((ab) =>
-      isActiveInPhaseAndTurn(ab.phases, ab.timing, currentPhase, currentTurn)
-    )
+  // 2. Dynamically extract and classify Detachment Rules from Wahapedia Detachment_abilities.csv
+  const allDetachmentAbilities = selectedDetachments.flatMap((d) => d.abilities);
+  const actionDetachmentAbilities = allDetachmentAbilities.filter(
+    (ab) =>
+      classifyRuleForPhase(
+        ab.name,
+        ab.description,
+        ab.phases,
+        ab.timing,
+        currentPhase,
+        currentTurn
+      ) === 'action_trigger'
+  );
+  const passiveDetachmentAbilities = allDetachmentAbilities.filter(
+    (ab) =>
+      classifyRuleForPhase(
+        ab.name,
+        ab.description,
+        ab.phases,
+        ab.timing,
+        currentPhase,
+        currentTurn
+      ) === 'passive_buff'
   );
 
   // 3. Dynamically detect Start-of-Round / Command Phase unit triggers across living units
@@ -159,11 +231,21 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
       ? compositeUnits.filter((c) => c.primaryLiveState.status === 'embarked')
       : [];
 
-  // 7. Wahapedia Universal Core Actions for this Phase
+  // 7. Wahapedia Universal Core Actions for this Phase (Turn-Aware Filtering)
   const seenCoreActionNames = new Set<string>();
   const phaseCoreActions = coreActions.filter((action) => {
     const normName = action.name.replace(/‑/g, '-').toUpperCase().trim();
     if (seenCoreActionNames.has(normName)) return false;
+
+    // Reactive-only core moves (Emergency Disembark, Surge Move) should not clutter Your Turn's Shooting Phase bar
+    if (
+      currentTurn === 'your_turn' &&
+      currentPhase === 'shooting' &&
+      /EMERGENCY DISEMBARK|SURGE MOVE/i.test(normName)
+    ) {
+      return false;
+    }
+
     const matches =
       action.phases.includes(currentPhase) ||
       (currentPhase === 'charge' && /charge|surge/i.test(action.name)) ||
@@ -402,19 +484,22 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
         </div>
       )}
 
-      {/* Active Army / Faction Rules & Detachment Rules from Wahapedia */}
-      {(activeFactionRules.length > 0 || activeDetachmentAbilities.length > 0) && (
+      {/* Actionable Army / Faction Rules & Detachment Triggers (With Checkboxes & Sub-Selectors) */}
+      {(actionFactionRules.length > 0 || actionDetachmentAbilities.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {activeFactionRules.map((ab) => {
+          {actionFactionRules.map((ab) => {
             const checkId = `faction_${ab.name}`;
-            const isChecked = completedChecklistIds.includes(checkId);
+            const activeSelection = activeArmyRuleSelections[ab.name];
+            const isChecked = completedChecklistIds.includes(checkId) || Boolean(activeSelection);
             const isExpanded = Boolean(expandedRuleIds[checkId]);
+            const presets = getArmyRulePresets(ab.name, ab.description);
+
             return (
               <div
                 key={checkId}
-                className={`p-2.5 rounded-lg border text-xs transition ${
+                className={`p-3 rounded-lg border text-xs transition ${
                   isChecked
-                    ? 'bg-slate-950/50 border-slate-800 opacity-60'
+                    ? 'bg-slate-950/60 border-emerald-700/50'
                     : 'bg-amber-950/20 border-amber-500/40'
                 }`}
               >
@@ -422,10 +507,10 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
                   <button
                     type="button"
                     onClick={() => onToggleChecklistItem(checkId)}
-                    className="flex items-start gap-2 text-left flex-1"
+                    className="flex items-start gap-2 text-left flex-1 min-h-[36px]"
                   >
                     {isChecked ? (
-                      <CheckSquare className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                     ) : (
                       <Square className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     )}
@@ -435,6 +520,11 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
                           Army Rule
                         </span>
+                        {activeSelection && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                            ✨ {activeSelection}
+                          </span>
+                        )}
                       </div>
                       {!isExpanded && (
                         <p className="text-[11px] text-slate-300 mt-0.5 line-clamp-1">
@@ -447,7 +537,7 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
                   <button
                     type="button"
                     onClick={() => toggleExpandRule(checkId)}
-                    className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-[11px] text-slate-300 border border-slate-700 shrink-0"
+                    className="inline-flex items-center gap-0.5 px-2.5 py-1.5 rounded bg-slate-900 hover:bg-slate-800 text-[11px] text-slate-300 border border-slate-700 shrink-0"
                   >
                     <span>{isExpanded ? 'Hide' : 'Rule'}</span>
                     {isExpanded ? (
@@ -458,6 +548,37 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
                   </button>
                 </div>
 
+                {/* Stateful Army Rule Sub-Selector (Surfaces Active Badge on Unit Cards) */}
+                {onSelectArmyRuleOption && presets.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-slate-800/70 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+                      Set Active on Unit Cards:
+                    </span>
+                    {presets.map((preset) => {
+                      const isSelected = activeSelection === preset;
+                      return (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => {
+                            onSelectArmyRuleOption(ab.name, isSelected ? '' : preset);
+                            if (!isSelected && !completedChecklistIds.includes(checkId)) {
+                              onToggleChecklistItem(checkId);
+                            }
+                          }}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border transition ${
+                            isSelected
+                              ? 'bg-amber-400 text-slate-950 border-amber-300 font-bold shadow'
+                              : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {isExpanded && (
                   <p className="mt-2 pt-2 border-t border-slate-800/80 text-xs text-slate-200 whitespace-pre-line leading-relaxed">
                     {ab.description}
@@ -467,14 +588,14 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
             );
           })}
 
-          {activeDetachmentAbilities.map((ab) => {
+          {actionDetachmentAbilities.map((ab) => {
             const checkId = `det_${ab.id}`;
             const isChecked = completedChecklistIds.includes(checkId);
             const isExpanded = Boolean(expandedRuleIds[checkId]);
             return (
               <div
                 key={checkId}
-                className={`p-2.5 rounded-lg border text-xs transition ${
+                className={`p-3 rounded-lg border text-xs transition ${
                   isChecked
                     ? 'bg-slate-950/50 border-slate-800 opacity-60'
                     : 'bg-slate-900/90 border-slate-700/80'
@@ -484,7 +605,7 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
                   <button
                     type="button"
                     onClick={() => onToggleChecklistItem(checkId)}
-                    className="flex items-start gap-2 text-left flex-1"
+                    className="flex items-start gap-2 text-left flex-1 min-h-[36px]"
                   >
                     {isChecked ? (
                       <CheckSquare className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
@@ -509,7 +630,7 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
                   <button
                     type="button"
                     onClick={() => toggleExpandRule(checkId)}
-                    className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-slate-950 hover:bg-slate-800 text-[11px] text-slate-300 border border-slate-700 shrink-0"
+                    className="inline-flex items-center gap-0.5 px-2.5 py-1.5 rounded bg-slate-950 hover:bg-slate-800 text-[11px] text-slate-300 border border-slate-700 shrink-0"
                   >
                     <span>{isExpanded ? 'Hide' : 'Rule'}</span>
                     {isExpanded ? (
@@ -528,6 +649,94 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Passive Army & Detachment Buffs Bar (No Misleading Checkboxes!) */}
+      {(passiveFactionRules.length > 0 || passiveDetachmentAbilities.length > 0) && (
+        <div className="pt-2 border-t border-slate-800/70">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+                <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Active Army / Detachment Buffs:</span>
+              </span>
+              {passiveFactionRules.map((ab) => {
+                const sel = activeArmyRuleSelections[ab.name];
+                return (
+                  <button
+                    key={`pas_f_${ab.name}`}
+                    type="button"
+                    onClick={() => setShowPassiveBuffs((v) => !v)}
+                    className="px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-200 text-[11px] font-semibold transition"
+                  >
+                    {ab.name}
+                    {sel ? ` (${sel})` : ''}
+                  </button>
+                );
+              })}
+              {passiveDetachmentAbilities.map((ab) => (
+                <button
+                  key={`pas_d_${ab.id}`}
+                  type="button"
+                  onClick={() => setShowPassiveBuffs((v) => !v)}
+                  className="px-2 py-0.5 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-[11px] font-semibold transition"
+                >
+                  {ab.name} <span className="text-amber-300/90">({ab.detachmentName})</span>
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowPassiveBuffs((v) => !v)}
+              className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-white"
+            >
+              <span>{showPassiveBuffs ? 'Hide Details' : 'View Buff Text'}</span>
+              {showPassiveBuffs ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
+            </button>
+          </div>
+
+          {showPassiveBuffs && (
+            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+              {passiveFactionRules.map((ab) => (
+                <div
+                  key={`pas_detail_f_${ab.name}`}
+                  className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-xs space-y-1"
+                >
+                  <div className="font-bold text-amber-300">
+                    {ab.name}{' '}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-200 ml-1">
+                      Army Rule
+                    </span>
+                  </div>
+                  <p className="text-slate-300 whitespace-pre-line leading-relaxed text-[11px]">
+                    {ab.description}
+                  </p>
+                </div>
+              ))}
+              {passiveDetachmentAbilities.map((ab) => (
+                <div
+                  key={`pas_detail_d_${ab.id}`}
+                  className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-xs space-y-1"
+                >
+                  <div className="font-bold text-white">
+                    {ab.name}{' '}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 ml-1">
+                      {ab.detachmentName}
+                    </span>
+                  </div>
+                  <p className="text-slate-300 whitespace-pre-line leading-relaxed text-[11px]">
+                    {ab.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>

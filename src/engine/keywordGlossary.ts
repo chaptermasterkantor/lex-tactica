@@ -596,6 +596,114 @@ export const KEYWORD_GLOSSARY: KeywordDefinition[] = [
     description:
       'Identifies Space Marine units eligible for the Oath of Moment army rule and Adeptus Astartes Detachment rules.',
   },
+
+  // =========================================================================
+  // STATLINE & WEAPON COLUMN HELPERS (Just-in-Time Tabletop Coaching)
+  // =========================================================================
+  {
+    keyword: 'STAT_M',
+    category: 'core_rule',
+    name: 'Move (M)',
+    summary: 'Maximum distance in inches a model can move in the Movement phase.',
+    description:
+      'Normal Move: Move up to M". Advance: Roll 1D6 and add to M" (unit cannot shoot or charge this turn unless weapons have [ASSAULT]). Fall Back: Move up to M" out of Engagement Range.',
+  },
+  {
+    keyword: 'STAT_T',
+    category: 'core_rule',
+    name: 'Toughness (T)',
+    summary: 'Resilience against incoming attacks; compared against the attacker’s Strength (S).',
+    description:
+      'When an opponent hits your unit, compare their weapon’s Strength (S) to your unit’s Toughness (T): S = T wounds on 4+. If S is higher, they wound on 3+ (or 2+ if S is at least double T). If S is lower, they wound on 5+ (or 6+ if S is half T or less).',
+  },
+  {
+    keyword: 'STAT_SV',
+    category: 'core_rule',
+    name: 'Armour Save (Sv)',
+    summary: 'Roll 1D6 for each wound suffered; modified by the attacker’s AP and Cover.',
+    description:
+      'Roll 1D6 and subtract the attacking weapon’s Armour Penetration (AP). If you have the Benefit of Cover, add 1 to the save roll (Note: Cover cannot improve a 3+ or better save against AP 0 attacks). An unmodified roll of 1 always fails.',
+  },
+  {
+    keyword: 'STAT_INV',
+    category: 'core_rule',
+    name: 'Invulnerable Save (Inv)',
+    summary: 'Special save that is NEVER modified by the attacker’s AP.',
+    description:
+      'When making a saving throw, you can choose to use either your Armour Save (modified by AP) or your Invulnerable Save (never modified by AP). Devastating Wounds bypass both Armour and Invulnerable saves.',
+  },
+  {
+    keyword: 'STAT_W',
+    category: 'core_rule',
+    name: 'Wounds (W)',
+    summary: 'How much damage each model can suffer before being destroyed.',
+    description:
+      'Allocate all attacks to an already-wounded model in the unit first until it is destroyed. Note: Excess damage from a normal attack does NOT spill over from one destroyed model to the next (only Mortal Wounds spill over).',
+  },
+  {
+    keyword: 'STAT_LD',
+    category: 'core_rule',
+    name: 'Leadership (Ld)',
+    summary: 'Roll 2D6 ≥ Ld in your Command phase if this unit is Below Half-Strength.',
+    description:
+      'In the Battle-shock step of your Command phase, test each unit Below Half-Strength by rolling 2D6. If the total is less than Ld, the unit is Battle-shocked until your next Command phase: its Objective Control (OC) becomes 0 and you cannot target it with Stratagems.',
+  },
+  {
+    keyword: 'STAT_OC',
+    category: 'core_rule',
+    name: 'Objective Control (OC)',
+    summary: 'Points each model contributes toward controlling an Objective Marker (within 3").',
+    description:
+      'Sum the OC of all models within range of an Objective Marker at the end of any phase/turn. The player with the highest total OC controls that objective. Battle-shocked units have an OC of 0.',
+  },
+  {
+    keyword: 'STAT_RNG',
+    category: 'core_rule',
+    name: 'Range',
+    summary: 'Maximum distance in inches to an eligible target model.',
+    description:
+      'Measure from the attacking model’s base to the closest visible model in the target unit. Weapons with [RAPID FIRE] or [MELTA] gain bonuses within half of this maximum range.',
+  },
+  {
+    keyword: 'STAT_A',
+    category: 'core_rule',
+    name: 'Attacks (A)',
+    summary: 'Number of Hit dice rolled per model firing or fighting with this weapon.',
+    description:
+      'Multiply Attacks (A) by the number of models in your unit firing this weapon. If A is variable (e.g. D6), roll separately to determine the number of attacks.',
+  },
+  {
+    keyword: 'STAT_BS_WS',
+    category: 'core_rule',
+    name: 'Ballistic / Weapon Skill (BS/WS)',
+    summary: 'Minimum D6 roll required to score a Hit.',
+    description:
+      'Step 1 of the Attack Sequence: Roll 1D6 per Attack. If the result ≥ BS (ranged) or WS (melee), the attack hits! Unmodified 6 is always a Critical Hit; unmodified 1 always misses. Hit rolls can never be modified by more than +1 or -1.',
+  },
+  {
+    keyword: 'STAT_S',
+    category: 'core_rule',
+    name: 'Strength (S) — Wound Roll Chart',
+    summary: 'Compared against target’s Toughness (T) to determine the Wound roll (2+ to 6+).',
+    description:
+      '11th Ed Wound Chart (Step 2 of Attack Sequence):\n• S is ≥ 2× Toughness → Wound on 2+\n• S is > Toughness → Wound on 3+\n• S equals Toughness → Wound on 4+\n• S is < Toughness → Wound on 5+\n• S is ≤ ½ Toughness → Wound on 6+\nTip: Tap any weapon’s Strength number to calculate its exact Toughness breakpoints!',
+  },
+  {
+    keyword: 'STAT_AP',
+    category: 'core_rule',
+    name: 'Armour Penetration (AP)',
+    summary: 'Modifier subtracted from the target’s Armour Save roll.',
+    description:
+      'Step 3 of the Attack Sequence: When your wound succeeds, the opponent subtracts your AP from their Armour Save roll (e.g., Sv 3+ against AP -2 requires a 5+ on the die). AP does not affect Invulnerable Saves.',
+  },
+  {
+    keyword: 'STAT_D',
+    category: 'core_rule',
+    name: 'Damage (D)',
+    summary: 'Wounds lost by the target model for each failed Save.',
+    description:
+      'Step 4 of the Attack Sequence: For each failed saving throw, the target model loses D wounds. Remember: normal excess damage does not spill over to a second model if the first model dies!',
+  },
 ];
 
 /**
@@ -621,6 +729,49 @@ export function lookupKeywordDefinition(
   );
   if (exact) {
     return exact;
+  }
+
+  // 1b. Dynamic Weapon Strength vs. Toughness Wound Roll Calculator (e.g., "STRENGTH 6", "STRENGTH 10")
+  const strengthMatch = upper.match(/^STRENGTH\s+(\d+)$/);
+  if (strengthMatch) {
+    const s = parseInt(strengthMatch[1], 10);
+    if (s > 0) {
+      const twoPlusMax = Math.floor(s / 2);
+      const threePlusMin = twoPlusMax + 1;
+      const threePlusMax = s - 1;
+      const fivePlusMin = s + 1;
+      const fivePlusMax = s * 2 - 1;
+      const sixPlusMin = s * 2;
+
+      const twoPlusLine =
+        twoPlusMax >= 1
+          ? `• 2+ to Wound: Target T 1–${twoPlusMax} (S ≥ 2×T)\n`
+          : '';
+      const threePlusLine =
+        threePlusMin <= threePlusMax
+          ? `• 3+ to Wound: Target T ${
+              threePlusMin === threePlusMax ? threePlusMin : `${threePlusMin}–${threePlusMax}`
+            } (S > T)\n`
+          : '';
+      const fourPlusLine = `• 4+ to Wound: Target T ${s} (S = T)\n`;
+      const fivePlusLine =
+        fivePlusMin <= fivePlusMax
+          ? `• 5+ to Wound: Target T ${
+              fivePlusMin === fivePlusMax ? fivePlusMin : `${fivePlusMin}–${fivePlusMax}`
+            } (S < T)\n`
+          : '';
+      const sixPlusLine = `• 6+ to Wound: Target T ${sixPlusMin}+ (S ≤ ½T)`;
+
+      return {
+        keyword: cleaned,
+        category: 'core_rule',
+        name: `Strength ${s} — Wound Roll Chart`,
+        summary: `Wounds T${s} on 4+${
+          twoPlusMax >= 1 ? ` · T≤${twoPlusMax} on 2+` : ''
+        } · T${sixPlusMin}+ on 6+`,
+        description: `When rolling to Wound with Strength ${s} against your opponent’s Toughness (T):\n${twoPlusLine}${threePlusLine}${fourPlusLine}${fivePlusLine}${sixPlusLine}`,
+      };
+    }
   }
 
   // 2. Parameterized Anti-Keyword X+ (e.g., "ANTI-VEHICLE 4+", "ANTI-INFANTRY 2+")

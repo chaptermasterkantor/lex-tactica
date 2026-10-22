@@ -154,7 +154,8 @@ export function transitionGameSessionStep(
     };
   }
 
-  // Auto-increment +1 CP to both players when advancing forward into a Command Phase
+  // Auto-increment +1 CP to both players when advancing forward into a Command Phase,
+  // OR when jumping directly out of pre_game into a Round 1 post-Command phase with 0 CP and no spent stratagems
   let userCp = state.userCp;
   let opponentCp = state.opponentCp;
   const isEnteringNewCommandPhase =
@@ -163,10 +164,30 @@ export function transitionGameSessionStep(
       state.currentTurn !== targetStep.currentTurn ||
       state.battleRound !== targetStep.battleRound);
 
-  if (isEnteringNewCommandPhase && targetStep.battleRound >= state.battleRound) {
+  const isNonLinearJumpFromPreGameIntoRound1 =
+    state.currentPhase === 'pre_game' &&
+    targetStep.battleRound === 1 &&
+    targetStep.currentPhase !== 'pre_game' &&
+    targetStep.currentPhase !== 'start_of_round' &&
+    targetStep.currentPhase !== 'command' &&
+    state.userCp === 0 &&
+    state.opponentCp === 0 &&
+    state.stratagemLog.length === 0;
+
+  if (
+    (isEnteringNewCommandPhase && targetStep.battleRound >= state.battleRound) ||
+    isNonLinearJumpFromPreGameIntoRound1
+  ) {
     userCp += 1;
     opponentCp += 1;
   }
+
+  // Clear round-scoped Army Rule selections when entering Your Turn's Command phase of a new round
+  const shouldClearArmyRuleSelections =
+    targetStep.currentPhase === 'pre_game' ||
+    (targetStep.currentPhase === 'command' &&
+      targetStep.currentTurn === 'your_turn' &&
+      state.currentPhase !== 'command');
 
   return {
     ...state,
@@ -177,6 +198,9 @@ export function transitionGameSessionStep(
     opponentCp,
     unitStates: updatedUnitStates,
     completedChecklistIds: [],
+    activeArmyRuleSelections: shouldClearArmyRuleSelections
+      ? {}
+      : state.activeArmyRuleSelections,
     updatedAt: Date.now(),
   };
 }

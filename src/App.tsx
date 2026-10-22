@@ -20,6 +20,10 @@ import {
   CheckCircle2,
   LayoutList,
   HelpCircle,
+  GraduationCap,
+  Trophy,
+  Minus,
+  Plus,
 } from 'lucide-react';
 import editionRules from './config/editionRules.json';
 import {
@@ -29,7 +33,10 @@ import {
   ensureStarterRosterSeeded,
   syncAllFactionsForOffline,
 } from './db/lexTacticaDb';
-import { buildCompositeUnits, isActiveInPhaseAndTurn } from './engine/compositeUnitBuilder';
+import {
+  buildCompositeUnits,
+  isStratagemActiveInPhaseAndTurn,
+} from './engine/compositeUnitBuilder';
 import {
   buildGameStepSequence,
   createInitialGameSession,
@@ -44,6 +51,7 @@ import type {
   Faction,
   GameSessionState,
   LiveUnitState,
+  MatchHistoryRecord,
   Phase,
   SavedRoster,
   Stratagem,
@@ -58,6 +66,77 @@ import { RosterEditorModal } from './components/RosterEditorModal';
 import { LexTacticaLogo } from './components/LexTacticaLogo';
 import { WelcomeModal } from './components/WelcomeModal';
 import { GameSetupWizardModal } from './components/GameSetupWizardModal';
+import { MatchSummaryModal } from './components/MatchSummaryModal';
+
+interface CoachState {
+  enabled: boolean;
+  phaseSeenCount: Record<string, number>;
+  gamesFinished: number;
+}
+
+const DEFAULT_COACH_STATE: CoachState = {
+  enabled: true,
+  phaseSeenCount: {},
+  gamesFinished: 0,
+};
+
+function loadCoachState(): CoachState {
+  try {
+    const raw = localStorage.getItem('lex_tactica_coach_state');
+    if (!raw) return DEFAULT_COACH_STATE;
+    const parsed = JSON.parse(raw);
+    return {
+      enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : true,
+      phaseSeenCount: parsed.phaseSeenCount ?? {},
+      gamesFinished: typeof parsed.gamesFinished === 'number' ? parsed.gamesFinished : 0,
+    };
+  } catch {
+    return DEFAULT_COACH_STATE;
+  }
+}
+
+const COACH_PHASE_SUBTITLES: Record<Phase, { your_turn: string; opponent_turn: string }> = {
+  pre_game: {
+    your_turn: 'Attach Characters to Bodyguards, set Reserves/Transports, and configure Mission & Terrain.',
+    opponent_turn: 'Attach Characters to Bodyguards, set Reserves/Transports, and configure Mission & Terrain.',
+  },
+  start_of_round: {
+    your_turn: 'Resolve Start-of-Battle-Round rules and check Primary Mission round triggers.',
+    opponent_turn: 'Resolve Start-of-Battle-Round rules and check Primary Mission round triggers.',
+  },
+  command: {
+    your_turn: 'Both players gain +1 CP • Test Battle-shock for Below Half-Strength units • Score Primary VP (Round 2+).',
+    opponent_turn: 'Both players gain +1 CP • Opponent tests Battle-shock and scores Primary VP.',
+  },
+  movement: {
+    your_turn: 'Move units (Normal, Advance, Fall Back, Stationary) • Bring in Reinforcements (Round 2+) >9" from enemies.',
+    opponent_turn: 'Watch for Fire Overwatch (1 CP) when enemy moves/sets up within 24" & visible, or Rapid Ingress at end of phase.',
+  },
+  shooting: {
+    your_turn: 'Select eligible units to shoot (Visible + in Range) • Note 11th Ed 15" Hidden/Concealed terrain limits.',
+    opponent_turn: 'Use defensive reactions (Smokescreen, Go to Ground, Armour of Contempt) when your units are targeted.',
+  },
+  charge: {
+    your_turn: '11th Ed Charge: Declare charging unit & roll 2D6 FIRST, then pick visible enemy targets within that roll distance.',
+    opponent_turn: 'Watch for Heroic Intervention (1 CP) or Fire Overwatch after an enemy declares a charge.',
+  },
+  fight: {
+    your_turn: '11th Ed Fight: Simultaneous 3" Pile-In → Fights First → Remaining Combats → Simultaneous 3" Consolidate.',
+    opponent_turn: 'Alternate selecting eligible units to fight • Use Counter-Offensive (2 CP) to interrupt after an enemy unit fights.',
+  },
+  end_of_turn: {
+    your_turn: 'Score Achieved Secondary Missions or discard 1 Secondary Card to gain +1 CP.',
+    opponent_turn: 'Verify opponent Secondary Mission scoring and end-of-turn unit positioning.',
+  },
+  end_of_round: {
+    your_turn: 'Resolve end-of-round mission scoring (Round 5 final scoring) and advance to the next Battle Round.',
+    opponent_turn: 'Resolve end-of-round mission scoring (Round 5 final scoring) and advance to the next Battle Round.',
+  },
+  any: {
+    your_turn: '',
+    opponent_turn: '',
+  },
+};
 
 export const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -73,14 +152,17 @@ export const App: React.FC = () => {
   const [allDetachments, setAllDetachments] = useState<Detachment[]>([]);
   const [enhancements, setEnhancements] = useState<Enhancement[]>([]);
   const [stratagems, setStratagems] = useState<Stratagem[]>([]);
+  const [opponentStratagems, setOpponentStratagems] = useState<Stratagem[]>([]);
   const [coreActions, setCoreActions] = useState<CoreAction[]>([]);
+  const [matchHistory, setMatchHistory] = useState<MatchHistoryRecord[]>([]);
 
+  const [coachState, setCoachState] = useState<CoachState>(loadCoachState);
   const [rosterBannerExpanded, setRosterBannerExpanded] = useState(false);
   const [unitsAccordionOpen, setUnitsAccordionOpen] = useState(false);
   const [forceCompactCards, setForceCompactCards] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | UnitBattlefieldStatus>('on_battlefield');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [editorInitialTab, setEditorInitialTab] = useState<'setup' | 'import' | 'rosters'>('setup');
+  const [editorInitialTab, setEditorInitialTab] = useState<'setup' | 'import' | 'rosters' | 'history'>('setup');
   const [isWelcomeOpen, setIsWelcomeOpen] = useState(() => {
     try {
       return localStorage.getItem('lex_tactica_welcome_seen') !== 'true';
@@ -94,8 +176,25 @@ export const App: React.FC = () => {
   const [stratDrawerUnitId, setStratDrawerUnitId] = useState<string | null>(null);
   const [offlineSyncStatus, setOfflineSyncStatus] = useState<string | null>(null);
   const [isSetupWizardOpen, setIsSetupWizardOpen] = useState(false);
+  const [isMatchSummaryOpen, setIsMatchSummaryOpen] = useState(false);
 
-  const handleOpenEditorTab = (tab: 'setup' | 'import' | 'rosters') => {
+  const updateCoachState = (updater: (prev: CoachState) => CoachState) => {
+    setCoachState((prev) => {
+      const next = updater(prev);
+      try {
+        localStorage.setItem('lex_tactica_coach_state', JSON.stringify(next));
+      } catch {
+        // Ignore storage errors
+      }
+      return next;
+    });
+  };
+
+  const handleSetCoachMode = (enabled: boolean) => {
+    updateCoachState((prev) => ({ ...prev, enabled }));
+  };
+
+  const handleOpenEditorTab = (tab: 'setup' | 'import' | 'rosters' | 'history') => {
     setEditorInitialTab(tab);
     setIsEditorOpen(true);
   };
@@ -118,6 +217,33 @@ export const App: React.FC = () => {
     setCoreActions(cActions);
   };
 
+  // Load opponent faction stratagems whenever opponent faction changes
+  const opponentFactionId = session?.matchSetup?.opponent.factionId;
+  useEffect(() => {
+    if (!opponentFactionId) {
+      setOpponentStratagems([]);
+      return;
+    }
+    let active = true;
+    (async () => {
+      try {
+        await ensureFactionDataSynced(opponentFactionId);
+        const [oppStrats, coreStrats] = await Promise.all([
+          db.stratagems.where('factionId').equals(opponentFactionId).toArray(),
+          db.stratagems.filter((s) => s.isCore).toArray(),
+        ]);
+        if (active) {
+          setOpponentStratagems([...coreStrats, ...oppStrats]);
+        }
+      } catch {
+        // Ignore if opponent faction fails to load
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [opponentFactionId]);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -132,9 +258,13 @@ export const App: React.FC = () => {
         setAllDetachments(coreInfo.detachments);
 
         const activeRoster = await ensureStarterRosterSeeded();
-        const rostersList = await db.savedRosters.orderBy('updatedAt').reverse().toArray();
+        const [rostersList, historyList] = await Promise.all([
+          db.savedRosters.orderBy('updatedAt').reverse().toArray(),
+          db.matchHistory.orderBy('completedAt').reverse().toArray(),
+        ]);
         if (!mounted) return;
         setAllRosters(rostersList);
+        setMatchHistory(historyList);
         setRoster(activeRoster);
 
         await loadFactionStateFromDb(activeRoster.factionId);
@@ -163,10 +293,37 @@ export const App: React.FC = () => {
     await db.gameSessions.put(nextSession);
   };
 
+  const recordCurrentPhaseSeen = () => {
+    if (!session) return;
+    const visitKey = `${session.currentPhase}_${session.currentTurn}`;
+    updateCoachState((prev) => ({
+      ...prev,
+      phaseSeenCount: {
+        ...prev.phaseSeenCount,
+        [visitKey]: (prev.phaseSeenCount[visitKey] ?? 0) + 1,
+      },
+    }));
+  };
+
   const handleUpdateSession = (updater: (prev: GameSessionState) => GameSessionState) => {
     if (!session) return;
     const next = updater(session);
     persistSession(next);
+  };
+
+  const handleSelectArmyRuleOption = (ruleId: string, optionLabel: string) => {
+    if (!session) return;
+    const prevSelections = { ...(session.activeArmyRuleSelections ?? {}) };
+    if (!optionLabel) {
+      delete prevSelections[ruleId];
+    } else {
+      prevSelections[ruleId] = optionLabel;
+    }
+    persistSession({
+      ...session,
+      activeArmyRuleSelections: prevSelections,
+      updatedAt: Date.now(),
+    });
   };
 
   const handleUpdateUnitState = (
@@ -264,6 +421,7 @@ export const App: React.FC = () => {
 
   const handleJumpToPhase = (phase: Phase, turnOverride?: 'your_turn' | 'opponent_turn') => {
     if (!session) return;
+    recordCurrentPhaseSeen();
     const targetTurn = turnOverride ?? session.currentTurn;
     const next = transitionGameSessionStep(session, {
       battleRound: session.battleRound,
@@ -274,8 +432,30 @@ export const App: React.FC = () => {
     persistSession(next);
   };
 
+  const handleAdvanceStep = (targetStep: typeof nextStep) => {
+    if (!session || !targetStep) return;
+    recordCurrentPhaseSeen();
+    persistSession(transitionGameSessionStep(session, targetStep));
+  };
+
   const handleNewGame = () => {
     setIsSetupWizardOpen(true);
+  };
+
+  const handleSaveMatchHistory = async (record: MatchHistoryRecord) => {
+    await db.matchHistory.put(record);
+    const updatedList = await db.matchHistory.orderBy('completedAt').reverse().toArray();
+    setMatchHistory(updatedList);
+    updateCoachState((prev) => ({
+      ...prev,
+      gamesFinished: prev.gamesFinished + 1,
+    }));
+  };
+
+  const handleDeleteMatchHistory = async (id: string) => {
+    await db.matchHistory.delete(id);
+    const updatedList = await db.matchHistory.orderBy('completedAt').reverse().toArray();
+    setMatchHistory(updatedList);
   };
 
   const handleToggleFirstTurn = () => {
@@ -379,6 +559,23 @@ export const App: React.FC = () => {
     persistSession(nextSession);
   };
 
+  const handleAdjustCp = (player: 'user' | 'opponent', delta: number) => {
+    if (!session) return;
+    if (player === 'user') {
+      persistSession({
+        ...session,
+        userCp: Math.max(0, session.userCp + delta),
+        updatedAt: Date.now(),
+      });
+    } else {
+      persistSession({
+        ...session,
+        opponentCp: Math.max(0, session.opponentCp + delta),
+        updatedAt: Date.now(),
+      });
+    }
+  };
+
   const handleDownloadAllOffline = async () => {
     setOfflineSyncStatus('Starting download of all 25 factions...');
     try {
@@ -446,21 +643,38 @@ export const App: React.FC = () => {
     (c) => Boolean(c.primaryLiveState.activatedInPhase) || c.primaryLiveState.status === 'destroyed'
   );
 
-  // Active Stratagems in this Phase & Turn
+  // Active Stratagems in this Phase & Turn (using strict turn/text verification)
   const rosterDetSet = new Set(roster.detachmentIds);
   const activePhaseStratagems = stratagems.filter(
     (s) =>
       (s.isCore ||
         (s.factionId === roster.factionId &&
           (rosterDetSet.size === 0 || rosterDetSet.has(s.detachmentId)))) &&
-      isActiveInPhaseAndTurn(s.phases, s.timing, session.currentPhase, session.currentTurn)
+      isStratagemActiveInPhaseAndTurn(s, session.currentPhase, session.currentTurn)
+  );
+
+  // Opponent Watchlist Stratagems (evaluated from the opponent's turn perspective!)
+  const opponentDetSet = new Set(session.matchSetup?.opponent.detachmentIds ?? []);
+  const opponentPerspectiveTurn =
+    session.currentTurn === 'your_turn' ? 'opponent_turn' : 'your_turn';
+  const opponentSourcePool =
+    opponentStratagems.length > 0 ? opponentStratagems : stratagems.filter((s) => s.isCore);
+  const opponentWatchlistStratagems = opponentSourcePool.filter(
+    (s) =>
+      (s.isCore ||
+        (opponentFactionId &&
+          s.factionId === opponentFactionId &&
+          (opponentDetSet.size === 0 || opponentDetSet.has(s.detachmentId)))) &&
+      isStratagemActiveInPhaseAndTurn(s, session.currentPhase, opponentPerspectiveTurn)
   );
 
   const isYourTurn = session.currentTurn === 'your_turn';
   const showExpandedRosterHeader = session.currentPhase === 'pre_game' || rosterBannerExpanded;
+  const currentPhaseVisitKey = `${session.currentPhase}_${session.currentTurn}`;
+  const hasSeenCurrentPhaseBefore = (coachState.phaseSeenCount[currentPhaseVisitKey] ?? 0) >= 1;
 
   return (
-    <div className="min-h-screen bg-[#0b0c10] text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#0b0c10] text-slate-100 flex flex-col pb-20">
       {/* Top Navigation & Slim Roster Bar */}
       <header className="border-b border-slate-800/80 bg-[#0e1017]/95 z-30 backdrop-blur no-print">
         <div className="max-w-5xl mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
@@ -489,6 +703,21 @@ export const App: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Tactical Coach Toggle Pill */}
+            <button
+              type="button"
+              onClick={() => handleSetCoachMode(!coachState.enabled)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition ${
+                coachState.enabled
+                  ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/50'
+                  : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-800'
+              }`}
+              title="Toggle Tactical Coach guidance (1-line phase prompts, auto-expanded first-visit sequences, and stat underline hints)"
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Coach: {coachState.enabled ? 'ON' : 'OFF'}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setIsWelcomeOpen(true)}
@@ -611,14 +840,14 @@ export const App: React.FC = () => {
             <button
               type="button"
               disabled={!prevStep}
-              onClick={() => prevStep && persistSession(transitionGameSessionStep(session, prevStep))}
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-slate-200 border border-slate-700 transition"
+              onClick={() => prevStep && handleAdvanceStep(prevStep)}
+              className="min-h-[44px] inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-slate-200 border border-slate-700 transition"
             >
               <ChevronLeft className="w-4 h-4" />
               <span>Prev</span>
             </button>
 
-            <div className="flex flex-col items-center text-center">
+            <div className="flex flex-col items-center text-center flex-1 min-w-[200px]">
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {session.currentPhase === 'pre_game' ? (
                   <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-teal-500/20 text-teal-300 border border-teal-500/40">
@@ -633,7 +862,7 @@ export const App: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleJumpToPhase(session.currentPhase, 'your_turn')}
-                        className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase transition ${
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase transition ${
                           isYourTurn
                             ? 'bg-emerald-500 text-slate-950 shadow'
                             : 'text-slate-400 hover:text-white'
@@ -644,7 +873,7 @@ export const App: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleJumpToPhase(session.currentPhase, 'opponent_turn')}
-                        className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase transition ${
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase transition ${
                           !isYourTurn
                             ? 'bg-rose-600 text-white shadow'
                             : 'text-slate-400 hover:text-white'
@@ -657,7 +886,7 @@ export const App: React.FC = () => {
                 )}
               </div>
 
-              <div className="mt-1 flex items-center gap-2">
+              <div className="mt-1 flex items-center justify-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-serif font-bold uppercase tracking-wider text-white">
                   {PHASE_LABELS[session.currentPhase]}
                 </h1>
@@ -667,25 +896,42 @@ export const App: React.FC = () => {
                   </span>
                 )}
               </div>
+
+              {/* 1-Line Tactical Coach Phase Objective Prompt */}
+              {coachState.enabled && (
+                <p className="mt-1 text-xs text-slate-300 max-w-xl">
+                  {COACH_PHASE_SUBTITLES[session.currentPhase]?.[session.currentTurn]}
+                </p>
+              )}
             </div>
 
-            <button
-              type="button"
-              disabled={!nextStep}
-              onClick={() => nextStep && persistSession(transitionGameSessionStep(session, nextStep))}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-[#eab308] hover:bg-amber-400 disabled:opacity-40 text-slate-950 shadow-md transition"
-            >
-              <span>
-                Next: {nextStep ? PHASE_LABELS[nextStep.currentPhase].replace(' Phase', '') : 'End'}
-              </span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            {nextStep ? (
+              <button
+                type="button"
+                onClick={() => handleAdvanceStep(nextStep)}
+                className="min-h-[44px] inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-[#eab308] hover:bg-amber-400 text-slate-950 shadow-md transition"
+              >
+                <span>
+                  Next: {PHASE_LABELS[nextStep.currentPhase].replace(' Phase', '')}
+                </span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsMatchSummaryOpen(true)}
+                className="min-h-[44px] inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition"
+              >
+                <Trophy className="w-4 h-4" />
+                <span>Finish Match</span>
+              </button>
+            )}
           </div>
 
-          {/* Cockpit Row 2: Single Phase Strip + Pop-Out Stratagems & Core Actions Launchers */}
+          {/* Cockpit Row 2: Horizontally Scrollable Phase Strip + Pop-Out Stratagems & Core Actions Launchers */}
           <div className="pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
-            {/* Phase Pills */}
-            <div className="flex flex-wrap items-center gap-1">
+            {/* Phase Pills (Single-Row Horizontally Scrollable on Mobile) */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 max-w-full">
               {(
                 [
                   { id: 'pre_game', label: 'Pre-game', icon: MapPin },
@@ -706,7 +952,7 @@ export const App: React.FC = () => {
                     key={item.id}
                     type="button"
                     onClick={() => handleJumpToPhase(item.id)}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
+                    className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition ${
                       isActive
                         ? 'bg-amber-400 text-slate-950 border-amber-300 font-bold shadow'
                         : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white'
@@ -731,6 +977,11 @@ export const App: React.FC = () => {
               >
                 <Zap className="w-3.5 h-3.5 text-amber-400" />
                 <span>Phase Stratagems ({activePhaseStratagems.length})</span>
+                {opponentWatchlistStratagems.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded bg-rose-500/30 text-rose-200 text-[10px]">
+                    👁️ {opponentWatchlistStratagems.length}
+                  </span>
+                )}
               </button>
 
               <button
@@ -748,9 +999,9 @@ export const App: React.FC = () => {
           </div>
         </section>
 
-        {/* Prominent Match & Terrain Setup Banner (if match not yet configured) */}
-        {!session.matchSetup && (
-          <div className="bg-gradient-to-r from-amber-500/15 via-slate-900 to-amber-500/15 border-2 border-amber-500/50 rounded-xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4 animate-pulse-subtle">
+        {/* Prominent Match & Terrain Setup Banner (ONLY in Pre-game if match not yet configured) */}
+        {!session.matchSetup && session.currentPhase === 'pre_game' && (
+          <div className="bg-gradient-to-r from-amber-500/15 via-slate-900 to-amber-500/15 border-2 border-amber-500/50 rounded-xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 shrink-0">
                 <Swords className="w-6 h-6" />
@@ -770,7 +1021,7 @@ export const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsSetupWizardOpen(true)}
-              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs uppercase tracking-wider transition shadow-lg shadow-amber-500/20 flex items-center gap-2 shrink-0"
+              className="min-h-[44px] px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs uppercase tracking-wider transition shadow-lg shadow-amber-500/20 flex items-center gap-2 shrink-0"
             >
               <SlidersHorizontal className="w-4 h-4" />
               <span>Launch Board & Mission Setup</span>
@@ -783,6 +1034,7 @@ export const App: React.FC = () => {
           session={session}
           onUpdateSession={handleUpdateSession}
           onOpenSetupWizard={() => setIsSetupWizardOpen(true)}
+          onOpenMatchSummary={() => setIsMatchSummaryOpen(true)}
         />
 
         {/* =====================================================================
@@ -795,9 +1047,13 @@ export const App: React.FC = () => {
           selectedDetachments={selectedDetachments}
           coreActions={coreActions}
           completedChecklistIds={session.completedChecklistIds ?? []}
+          activeArmyRuleSelections={session.activeArmyRuleSelections}
+          coachEnabled={coachState.enabled}
+          hasSeenPhaseBefore={hasSeenCurrentPhaseBefore}
           onToggleChecklistItem={handleToggleChecklistItem}
           onUpdateUnitState={handleUpdateUnitState}
           onOpenCoreAction={handleOpenCoreAction}
+          onSelectArmyRuleOption={handleSelectArmyRuleOption}
         />
 
         {/* =====================================================================
@@ -821,7 +1077,7 @@ export const App: React.FC = () => {
                   key={tab.id}
                   type="button"
                   onClick={() => setStatusFilter(tab.id)}
-                  className={`px-2.5 py-1 rounded-lg border transition ${
+                  className={`px-2.5 py-1.5 rounded-lg border transition ${
                     statusFilter === tab.id
                       ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-semibold'
                       : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
@@ -838,7 +1094,7 @@ export const App: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleResetPhaseActivations}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-700/60 transition"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-700/60 transition"
                   title="Mark all units Ready again for this phase"
                 >
                   <RotateCcw className="w-3 h-3" />
@@ -849,7 +1105,7 @@ export const App: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setForceCompactCards((v) => !v)}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition ${
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition ${
                   forceCompactCards
                     ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
                     : 'bg-indigo-500/20 border-indigo-400 text-indigo-200'
@@ -862,7 +1118,7 @@ export const App: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setUnitsAccordionOpen((v) => !v)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition"
               >
                 <span>Batch Status</span>
                 {unitsAccordionOpen ? (
@@ -923,6 +1179,8 @@ export const App: React.FC = () => {
                   phaseStratagems={activePhaseStratagems}
                   userCp={session.userCp}
                   forceCompact={forceCompactCards}
+                  coachEnabled={coachState.enabled}
+                  activeArmyRuleSelections={session.activeArmyRuleSelections}
                   onUpdateUnitState={handleUpdateUnitState}
                   onUseStratagemOnUnit={handleUseStratagemOnUnit}
                   onOpenUnitStratagems={handleOpenUnitStratagems}
@@ -949,6 +1207,8 @@ export const App: React.FC = () => {
                   phaseStratagems={activePhaseStratagems}
                   userCp={session.userCp}
                   forceCompact={forceCompactCards}
+                  coachEnabled={coachState.enabled}
+                  activeArmyRuleSelections={session.activeArmyRuleSelections}
                   onUpdateUnitState={handleUpdateUnitState}
                   onUseStratagemOnUnit={handleUseStratagemOnUnit}
                   onOpenUnitStratagems={handleOpenUnitStratagems}
@@ -962,16 +1222,123 @@ export const App: React.FC = () => {
       {/* Footer Attribution & Fan-Use Disclaimer */}
       <footer className="border-t border-slate-900 bg-[#08090d] py-4 px-4 text-center text-[11px] text-slate-500 no-print space-y-1">
         <div>
-          Lex Tactica — Unofficial fan-made Warhammer 40,000 11th Edition Playbook PWA. Powered by
-          Wahapedia data export ({lastUpdate}).
+          Lex Tactica — Unofficial fan-made Warhammer 40,000 11th Edition Playbook PWA. Powered by Wahapedia.
+        </div>
+        <div className="text-slate-400">
+          Wahapedia Rules Version: {lastUpdate}
           {lastSyncedAt && (
-            <span className="ml-1 text-slate-400">
-              · Last synced: {new Date(lastSyncedAt).toLocaleDateString()} {new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            <span className="ml-1">
+              · Offline Cache: {new Date(lastSyncedAt).toLocaleDateString()} {new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
         </div>
         <div>Not affiliated with or endorsed by Games Workshop.</div>
       </footer>
+
+      {/* =====================================================================
+          STICKY BOTTOM THUMB-BAR (One-Handed Standing Tabletop Ergonomics)
+         ===================================================================== */}
+      <nav
+        aria-label="Tabletop Quick Controls"
+        className="fixed bottom-0 inset-x-0 z-40 bg-[#0b0c10]/95 backdrop-blur-md border-t border-slate-800 px-2 sm:px-4 py-1.5 no-print shadow-[0_-8px_24px_rgba(0,0,0,0.6)]"
+      >
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-1.5 sm:gap-2">
+          {/* 1. Prev Phase */}
+          <button
+            type="button"
+            disabled={!prevStep}
+            onClick={() => prevStep && handleAdvanceStep(prevStep)}
+            className="min-w-[44px] min-h-[44px] px-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-slate-200 border border-slate-700 inline-flex items-center justify-center gap-1 text-xs font-bold transition"
+            title="Previous Phase"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Prev</span>
+          </button>
+
+          {/* 2. Quick CP Stepper */}
+          <div className="inline-flex items-center rounded-xl bg-slate-900 border border-slate-700 p-0.5">
+            <button
+              type="button"
+              onClick={() => handleAdjustCp('user', -1)}
+              className="min-w-[38px] sm:min-w-[44px] min-h-[40px] rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-center transition"
+              title="Spend 1 CP"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+            <div className="px-2 text-center">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-none">
+                Your CP
+              </div>
+              <div className="text-sm font-black text-amber-400 leading-tight">
+                {session.userCp}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleAdjustCp('user', 1)}
+              className="min-w-[38px] sm:min-w-[44px] min-h-[40px] rounded-lg hover:bg-slate-800 text-slate-300 flex items-center justify-center transition"
+              title="Gain 1 CP"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* 3. Phase Stratagems + Opponent Watchlist Drawer */}
+          <button
+            type="button"
+            onClick={() => {
+              setStratDrawerUnitId(null);
+              setIsStratDrawerOpen(true);
+            }}
+            className="min-h-[44px] px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 inline-flex items-center justify-center gap-1.5 text-xs font-bold transition"
+          >
+            <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>Strats ({activePhaseStratagems.length})</span>
+            {opponentWatchlistStratagems.length > 0 && (
+              <span className="hidden md:inline px-1.5 py-0.5 rounded bg-rose-500/30 text-rose-200 text-[10px]">
+                👁️ {opponentWatchlistStratagems.length}
+              </span>
+            )}
+          </button>
+
+          {/* 4. Core Actions Drawer */}
+          <button
+            type="button"
+            onClick={() => {
+              setCoreActionInitialSearch('');
+              setIsCoreActionsOpen(true);
+            }}
+            className="min-w-[44px] min-h-[44px] px-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 inline-flex items-center justify-center gap-1.5 text-xs font-semibold transition"
+            title="11th Edition Core Actions Reference"
+          >
+            <BookOpen className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="hidden sm:inline">Rules</span>
+          </button>
+
+          {/* 5. Next Phase / Finish Match */}
+          {nextStep ? (
+            <button
+              type="button"
+              onClick={() => handleAdvanceStep(nextStep)}
+              className="min-h-[44px] px-3.5 rounded-xl bg-[#eab308] hover:bg-amber-400 text-slate-950 font-extrabold text-xs inline-flex items-center justify-center gap-1 shadow-md transition"
+            >
+              <span className="truncate max-w-[110px] sm:max-w-none">
+                Next: {PHASE_LABELS[nextStep.currentPhase].replace(' Phase', '')}
+              </span>
+              <ChevronRight className="w-4 h-4 shrink-0" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsMatchSummaryOpen(true)}
+              className="min-h-[44px] px-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs inline-flex items-center justify-center gap-1.5 shadow-md transition"
+            >
+              <Trophy className="w-4 h-4 shrink-0" />
+              <span>Finish Match</span>
+            </button>
+          )}
+        </div>
+      </nav>
 
       {/* Pop-Out Drawers & Modals */}
       <PhaseStratagemsDrawer
@@ -980,11 +1347,14 @@ export const App: React.FC = () => {
         currentPhase={session.currentPhase}
         currentTurn={session.currentTurn}
         userCp={session.userCp}
+        opponentCp={session.opponentCp}
         phaseStratagems={activePhaseStratagems}
+        opponentWatchlistStratagems={opponentWatchlistStratagems}
         compositeUnits={compositeUnits}
         filterUnitInstanceId={stratDrawerUnitId}
         onSelectUnitFilter={setStratDrawerUnitId}
         onUseStratagemOnUnit={handleUseStratagemOnUnit}
+        onAdjustCp={handleAdjustCp}
       />
 
       <CoreActionsDrawer
@@ -1005,10 +1375,12 @@ export const App: React.FC = () => {
         datasheets={datasheets}
         detachments={detachments}
         enhancements={enhancements}
+        matchHistory={matchHistory}
         onSaveRoster={handleSaveRoster}
         onSelectRoster={handleSelectRoster}
         onDeleteRoster={handleDeleteRoster}
         onChangeFaction={loadFactionStateFromDb}
+        onDeleteMatchHistory={handleDeleteMatchHistory}
       />
 
       {isSetupWizardOpen && (
@@ -1025,12 +1397,29 @@ export const App: React.FC = () => {
         />
       )}
 
+      <MatchSummaryModal
+        isOpen={isMatchSummaryOpen}
+        onClose={() => setIsMatchSummaryOpen(false)}
+        session={session}
+        roster={roster}
+        currentFaction={currentFaction}
+        selectedDetachments={selectedDetachments}
+        compositeUnits={compositeUnits}
+        stratagems={stratagems}
+        onSaveMatchHistory={handleSaveMatchHistory}
+        onStartNewMatch={() => {
+          setIsMatchSummaryOpen(false);
+          handleNewGame();
+        }}
+      />
+
       <WelcomeModal
         isOpen={isWelcomeOpen}
         onClose={() => setIsWelcomeOpen(false)}
         onOpenImport={() => handleOpenEditorTab('import')}
         onOpenSetup={() => handleOpenEditorTab('setup')}
         onOpenRosters={() => handleOpenEditorTab('rosters')}
+        onSelectCoachPreference={handleSetCoachMode}
       />
     </div>
   );
