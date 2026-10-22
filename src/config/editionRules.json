@@ -1,0 +1,155 @@
+{
+  "edition": "11th Edition",
+  "version": "11.0.0",
+  "battleSizes": {
+    "incursion": {
+      "label": "Incursion",
+      "maxPoints": 1000,
+      "maxDetachmentPoints": 2
+    },
+    "strike_force": {
+      "label": "Strike Force",
+      "maxPoints": 2000,
+      "maxDetachmentPoints": 3
+    },
+    "onslaught": {
+      "label": "Onslaught",
+      "maxPoints": 3000,
+      "maxDetachmentPoints": 4
+    }
+  },
+  "forceDispositions": [
+    "Disruption",
+    "Purge the Foe",
+    "Take and Hold",
+    "Priority Assets",
+    "Reconnaissance"
+  ],
+  "attachments": {
+    "maxRegularLeadersPerUnit": 1,
+    "maxSupportLeadersPerUnit": 1,
+    "separateOnBodyguardDestruction": true,
+    "deactivateLeaderBuffsOnCharacterDeath": true
+  },
+  "stratagemRules": {
+    "maxStratagemsPerUnitPerPhase": 1,
+    "battleShockedUnitsCannotBeTargeted": true
+  },
+  "coreMechanics": {
+    "deepStrikeIngressHorizontalDistanceInches": 8,
+    "hiddenConcealedTerrainDistanceInches": 15,
+    "chargeRollBeforeTargetSelection": true,
+    "simultaneousPileInAndConsolidate": true,
+    "fallBackModes": [
+      {
+        "name": "Ordered Retreat",
+        "condition": "Unit is not Battle-shocked",
+        "effect": "Move up to M characteristic and end unengaged. Cannot shoot, charge, or start an action this turn."
+      },
+      {
+        "name": "Desperate Escape",
+        "condition": "Unit is Battle-shocked (or chooses Desperate Escape to move through enemy models)",
+        "effect": "Make a Hazard roll for each model before moving; can move through enemy models; if not already Battle-shocked, must take a Battle-shock test after moving."
+      }
+    ]
+  },
+  "phaseSequence": [
+    {
+      "id": "pre_game",
+      "label": "Pre-game",
+      "shortLabel": "Pre-game",
+      "isRoundScoped": false,
+      "subSteps": [
+        "1. Declare Battle Formations (Attach max 1 Leader + 1 Support per Bodyguard unit; declare Transports & Strategic Reserves)",
+        "2. Deploy Armies & Fortifications",
+        "3. Resolve Pre-Battle Abilities & Scouts X\" Moves",
+        "4. Determine First Turn"
+      ]
+    },
+    {
+      "id": "start_of_round",
+      "label": "Start of Battle Round",
+      "shortLabel": "Start of Round",
+      "isRoundScoped": true,
+      "subSteps": [
+        "1. Resolve Start of Battle Round Army & Detachment Rules",
+        "2. Select Round-Scoped Doctrines / Stances / Protocols"
+      ]
+    },
+    {
+      "id": "command",
+      "label": "Command Phase",
+      "shortLabel": "Command",
+      "isRoundScoped": false,
+      "subSteps": [
+        "1. Both Players Gain 1 CP (Start of Command Phase)",
+        "2. Resolve Command Phase Army, Detachment, and Unit Abilities",
+        "3. Battle-Shock Step: Roll 2D6 for each friendly unit Below Half-Strength (<50% models or wounds); if failed, OC becomes 0 and unit cannot be targeted by friendly Stratagems"
+      ]
+    },
+    {
+      "id": "movement",
+      "label": "Movement Phase",
+      "shortLabel": "Movement",
+      "isRoundScoped": false,
+      "subSteps": [
+        "1. Move Units: Normal Move, Advance Move, Remain Stationary, or Fall-Back Move (Ordered Retreat vs Desperate Escape)",
+        "2. Reinforcements / Ingress Step: Set up Reserves / Deep Strike units >8\" horizontally from all enemy models"
+      ]
+    },
+    {
+      "id": "shooting",
+      "label": "Shooting Phase",
+      "shortLabel": "Shooting",
+      "isRoundScoped": false,
+      "subSteps": [
+        "1. Select Eligible Unit & Shooting Mode (Normal, Assault, Close-Quarters, Indirect, or Snap Shooting)",
+        "2. 11th Ed Terrain Check: Units obscured by terrain beyond 15\" (Hidden/Concealed) cannot be targeted",
+        "3. Resolve Ranged Attacks & Reactive Moves"
+      ]
+    },
+    {
+      "id": "charge",
+      "label": "Charge Phase",
+      "shortLabel": "Charge",
+      "isRoundScoped": false,
+      "subSteps": [
+        "1. Select Eligible Unengaged Unit to Charge",
+        "2. 11th Ed Charge Sequence: Make 2D6 Charge Roll FIRST, then select reachable Charge Target(s)",
+        "3. Resolve Charge Move (must end in Engagement Range)"
+      ]
+    },
+    {
+      "id": "fight",
+      "label": "Fight Phase",
+      "shortLabel": "Fight",
+      "isRoundScoped": false,
+      "subSteps": [
+        "1. Fights First Step (Alternating activations starting with non-active player)",
+        "2. Remaining Combats Step (Alternating activations starting with non-active player)",
+        "3. 11th Ed Fight Sequence: Simultaneous Pile-In Move -> Make Melee Attacks -> Simultaneous Consolidation Move (or Overrun Fight)"
+      ]
+    },
+    {
+      "id": "end_of_turn",
+      "label": "End of Turn",
+      "shortLabel": "End of Turn",
+      "isRoundScoped": false,
+      "subSteps": [
+        "1. Score End-of-Turn Primary & Secondary Mission VP",
+        "2. Resolve End of Turn Abilities & Strategic Reserves Pick-Ups",
+        "3. Clear Phase/Turn-Scoped Effects"
+      ]
+    },
+    {
+      "id": "end_of_round",
+      "label": "End of Battle Round",
+      "shortLabel": "End of Round",
+      "isRoundScoped": true,
+      "subSteps": [
+        "1. Score End-of-Battle-Round Objectives",
+        "2. Advance to Next Battle Round (up to Round 5)"
+      ]
+    }
+  ]
+}

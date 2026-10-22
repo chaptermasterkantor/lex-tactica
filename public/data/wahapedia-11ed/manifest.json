@@ -1,0 +1,213 @@
+{
+  "edition": "11th Edition",
+  "lastUpdate": "2026-10-16 21:03:46",
+  "generatedAt": "2026-10-18T01:11:56.080Z",
+  "totalFactions": 25,
+  "totalDatasheets": 1510,
+  "totalDetachments": 256,
+  "totalStratagems": 1219,
+  "totalCoreActions": 23,
+  "totalEnhancements": 817,
+  "factions": [
+    {
+      "id": "AoI",
+      "name": "Imperial Agents",
+      "datasheetCount": 45,
+      "detachmentCount": 5,
+      "stratagemCount": 30,
+      "enhancementCount": 20
+    },
+    {
+      "id": "AM",
+      "name": "Astra Militarum",
+      "datasheetCount": 134,
+      "detachmentCount": 11,
+      "stratagemCount": 57,
+      "enhancementCount": 38
+    },
+    {
+      "id": "GC",
+      "name": "Genestealer Cults",
+      "datasheetCount": 146,
+      "detachmentCount": 9,
+      "stratagemCount": 45,
+      "enhancementCount": 30
+    },
+    {
+      "id": "NEC",
+      "name": "Necrons",
+      "datasheetCount": 64,
+      "detachmentCount": 12,
+      "stratagemCount": 63,
+      "enhancementCount": 42
+    },
+    {
+      "id": "AE",
+      "name": "Aeldari",
+      "datasheetCount": 99,
+      "detachmentCount": 15,
+      "stratagemCount": 84,
+      "enhancementCount": 52
+    },
+    {
+      "id": "TL",
+      "name": "Adeptus Titanicus",
+      "datasheetCount": 4,
+      "detachmentCount": 0,
+      "stratagemCount": 0,
+      "enhancementCount": 0
+    },
+    {
+      "id": "ORK",
+      "name": "Orks",
+      "datasheetCount": 67,
+      "detachmentCount": 15,
+      "stratagemCount": 40,
+      "enhancementCount": 38
+    },
+    {
+      "id": "GK",
+      "name": "Grey Knights",
+      "datasheetCount": 31,
+      "detachmentCount": 9,
+      "stratagemCount": 45,
+      "enhancementCount": 30
+    },
+    {
+      "id": "TAU",
+      "name": "T’au Empire",
+      "datasheetCount": 62,
+      "detachmentCount": 7,
+      "stratagemCount": 31,
+      "enhancementCount": 23
+    },
+    {
+      "id": "LoV",
+      "name": "Leagues of Votann",
+      "datasheetCount": 22,
+      "detachmentCount": 10,
+      "stratagemCount": 51,
+      "enhancementCount": 34
+    },
+    {
+      "id": "AdM",
+      "name": "Adeptus Mechanicus",
+      "datasheetCount": 38,
+      "detachmentCount": 10,
+      "stratagemCount": 51,
+      "enhancementCount": 34
+    },
+    {
+      "id": "TS",
+      "name": "Thousand Sons",
+      "datasheetCount": 45,
+      "detachmentCount": 9,
+      "stratagemCount": 45,
+      "enhancementCount": 30
+    },
+    {
+      "id": "DG",
+      "name": "Death Guard",
+      "datasheetCount": 56,
+      "detachmentCount": 9,
+      "stratagemCount": 45,
+      "enhancementCount": 30
+    },
+    {
+      "id": "EC",
+      "name": "Emperor’s Children",
+      "datasheetCount": 23,
+      "detachmentCount": 10,
+      "stratagemCount": 51,
+      "enhancementCount": 34
+    },
+    {
+      "id": "WE",
+      "name": "World Eaters",
+      "datasheetCount": 43,
+      "detachmentCount": 8,
+      "stratagemCount": 39,
+      "enhancementCount": 26
+    },
+    {
+      "id": "QT",
+      "name": "Chaos Knights",
+      "datasheetCount": 37,
+      "detachmentCount": 8,
+      "stratagemCount": 39,
+      "enhancementCount": 28
+    },
+    {
+      "id": "CD",
+      "name": "Chaos Daemons",
+      "datasheetCount": 101,
+      "detachmentCount": 9,
+      "stratagemCount": 46,
+      "enhancementCount": 29
+    },
+    {
+      "id": "QI",
+      "name": "Imperial Knights",
+      "datasheetCount": 28,
+      "detachmentCount": 8,
+      "stratagemCount": 39,
+      "enhancementCount": 26
+    },
+    {
+      "id": "SM",
+      "name": "Space Marines",
+      "datasheetCount": 192,
+      "detachmentCount": 35,
+      "stratagemCount": 142,
+      "enhancementCount": 93
+    },
+    {
+      "id": "TYR",
+      "name": "Tyranids",
+      "datasheetCount": 57,
+      "detachmentCount": 10,
+      "stratagemCount": 51,
+      "enhancementCount": 34
+    },
+    {
+      "id": "AC",
+      "name": "Adeptus Custodes",
+      "datasheetCount": 36,
+      "detachmentCount": 13,
+      "stratagemCount": 41,
+      "enhancementCount": 29
+    },
+    {
+      "id": "AS",
+      "name": "Adepta Sororitas",
+      "datasheetCount": 38,
+      "detachmentCount": 8,
+      "stratagemCount": 36,
+      "enhancementCount": 25
+    },
+    {
+      "id": "CSM",
+      "name": "Chaos Space Marines",
+      "datasheetCount": 96,
+      "detachmentCount": 17,
+      "stratagemCount": 93,
+      "enhancementCount": 62
+    },
+    {
+      "id": "DRU",
+      "name": "Drukhari",
+      "datasheetCount": 46,
+      "detachmentCount": 9,
+      "stratagemCount": 45,
+      "enhancementCount": 30
+    },
+    {
+      "id": "UA",
+      "name": "Unbound Adversaries",
+      "datasheetCount": 0,
+      "detachmentCount": 0,
+      "stratagemCount": 0,
+      "enhancementCount": 0
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <!-- Blade Gradient -->
+    <linearGradient id="favBlade" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#ffffff" />
+      <stop offset="25%" stopColor="#fef08a" />
+      <stop offset="60%" stopColor="#f59e0b" />
+      <stop offset="100%" stopColor="#d97706" />
+    </linearGradient>
+
+    <!-- Gold Hilt Gradient -->
+    <linearGradient id="favGold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stopColor="#fef08a" />
+      <stop offset="50%" stopColor="#eab308" />
+      <stop offset="100%" stopColor="#92400e" />
+    </linearGradient>
+
+    <!-- Jewel Gradient -->
+    <radialGradient id="favGem" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stopColor="#fef08a" />
+      <stop offset="60%" stopColor="#ea580c" />
+      <stop offset="100%" stopColor="#7c2d12" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background Tile -->
+  <rect width="64" height="64" rx="14" fill="#090d16" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.3"/>
+
+  <!-- Sparkles / Bling -->
+  <!-- Sparkle 1 (Top Left) -->
+  <path d="M 13 9 Q 13 14 8 14 Q 13 14 13 19 Q 13 14 18 14 Q 13 14 13 9 Z" fill="#fef08a" opacity="0.95"/>
+  <circle cx="13" cy="14" r="1.2" fill="#ffffff"/>
+
+  <!-- Sparkle 2 (Right Blade) -->
+  <path d="M 46 22 Q 46 25.5 42.5 25.5 Q 46 25.5 46 29 Q 46 25.5 49.5 25.5 Q 46 25.5 46 22 Z" fill="#fbbf24" opacity="0.9"/>
+  <circle cx="46" cy="25.5" r="1" fill="#ffffff"/>
+
+  <!-- Sparkle 3 (Lower Accent) -->
+  <circle cx="16" cy="37" r="1.5" fill="#fde047" opacity="0.8"/>
+
+  <!-- Laurel Leaves at Crossguard -->
+  <g fill="url(#favGold)" opacity="0.85">
+    <path d="M 24 37 C 19 34 16 38 20 41 C 22.4 39.6 23.6 38.4 24 37 Z"/>
+    <path d="M 20 42.4 C 16 40.4 14 44.4 18 46.4 C 19.6 44.8 20.4 43.6 20 42.4 Z"/>
+    <path d="M 40 37 C 45 34 48 38 44 41 C 41.6 39.6 40.4 38.4 40 37 Z"/>
+    <path d="M 44 42.4 C 48 40.4 50 44.4 46 46.4 C 44.4 44.8 43.6 43.6 44 42.4 Z"/>
+  </g>
+
+  <!-- Sword Blade -->
+  <!-- Left Bevel -->
+  <path d="M 32 3.6 L 27.6 13 L 28.4 37 L 32 37 Z" fill="url(#favBlade)" />
+  <!-- Right Bevel -->
+  <path d="M 32 3.6 L 36.4 13 L 35.6 37 L 32 37 Z" fill="#d97706" />
+  <!-- Fuller (Center light beam) -->
+  <line x1="32" y1="10" x2="32" y2="35" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" opacity="0.95"/>
+  <!-- Energy Pulse Etching -->
+  <path d="M 32 14 L 30 19 L 33 22 L 30.4 28" stroke="#ffffff" stroke-width="1" stroke-linecap="round" opacity="0.85"/>
+
+  <!-- Ornate Crossguard -->
+  <path d="M 15 38 L 21 35 L 29 36.4 L 32 37.6 L 35 36.4 L 43 35 L 49 38 L 47 41 L 38 39.6 L 32 41 L 26 39.6 L 17 41 Z" fill="url(#favGold)" stroke="#78350f" stroke-width="1"/>
+  <!-- Quillon Finials (Gold orbs) -->
+  <circle cx="15" cy="38" r="2.4" fill="#fde047" stroke="#78350f" stroke-width="0.8"/>
+  <circle cx="49" cy="38" r="2.4" fill="#fde047" stroke="#78350f" stroke-width="0.8"/>
+
+  <!-- Jeweled Core Gem -->
+  <circle cx="32" cy="38.8" r="3.6" fill="url(#favGem)" stroke="#fef08a" stroke-width="1"/>
+  <circle cx="31" cy="37.8" r="1" fill="#ffffff"/>
+
+  <!-- Handle / Grip -->
+  <rect x="29.6" y="41" width="4.8" height="13" fill="#78350f"/>
+  <line x1="29.6" y1="44" x2="34.4" y2="44" stroke="#f59e0b" stroke-width="1.2"/>
+  <line x1="29.6" y1="47.6" x2="34.4" y2="47.6" stroke="#f59e0b" stroke-width="1.2"/>
+  <line x1="29.6" y1="51.2" x2="34.4" y2="51.2" stroke="#f59e0b" stroke-width="1.2"/>
+
+  <!-- Pommel Diamond -->
+  <polygon points="32,54.4 36,58 32,61.6 28,58" fill="url(#favGold)" stroke="#78350f" stroke-width="1"/>
+  <circle cx="32" cy="58" r="1.2" fill="#fef08a"/>
+</svg>
