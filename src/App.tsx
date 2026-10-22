@@ -714,23 +714,23 @@ export const App: React.FC = () => {
 
           <div className="flex flex-wrap items-center gap-2">
             {/* Tactical Coach Toggle Pill & Rogal Dorn Easter Egg */}
-            <div className="inline-flex items-center gap-1.5">
+            <div className="relative inline-flex items-center gap-1">
               {!isDornDismissed && (
                 <button
                   type="button"
                   onClick={handleDornClick}
                   title="Lord Commander Rogal Dorn (Click to dismiss)"
                   aria-label="Lord Commander Rogal Dorn"
-                  className={`relative inline-flex items-center justify-center transition-all duration-700 ease-out focus:outline-none ${
+                  className={`relative z-10 -my-2.5 inline-flex items-center justify-center transition-all duration-700 ease-out focus:outline-none ${
                     isDornFading
-                      ? 'opacity-0 scale-50 max-w-0 -mr-1.5 pointer-events-none'
-                      : 'opacity-100 scale-100 max-w-10 hover:scale-110 active:scale-95 cursor-pointer'
+                      ? 'opacity-0 scale-50 max-w-0 -mr-1 pointer-events-none'
+                      : 'opacity-100 scale-100 max-w-16 hover:scale-110 active:scale-95 cursor-pointer'
                   }`}
                 >
                   <img
                     src={dornImg}
                     alt="Rogal Dorn Coach"
-                    className="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)] select-none pointer-events-none"
+                    className="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] select-none pointer-events-none"
                     draggable={false}
                   />
                 </button>
