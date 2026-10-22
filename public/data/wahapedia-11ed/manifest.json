@@ -1,9 +1,9 @@
 {
   "edition": "11th Edition",
-  "lastUpdate": "2026-10-16 21:03:46",
-  "generatedAt": "2026-10-18T01:11:56.080Z",
+  "lastUpdate": "2026-10-21 16:06:23",
+  "generatedAt": "2026-10-22T02:40:25.506Z",
   "totalFactions": 25,
-  "totalDatasheets": 1510,
+  "totalDatasheets": 1511,
   "totalDetachments": 256,
   "totalStratagems": 1219,
   "totalCoreActions": 23,
@@ -12,7 +12,7 @@
     {
       "id": "AoI",
       "name": "Imperial Agents",
-      "datasheetCount": 45,
+      "datasheetCount": 46,
       "detachmentCount": 5,
       "stratagemCount": 30,
       "enhancementCount": 20

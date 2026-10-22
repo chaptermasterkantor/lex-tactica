@@ -14,7 +14,8 @@ import { getExpectedPointsForUnitCopy, validateRoster } from '../rosterValidator
 import { buildCompositeUnits } from '../compositeUnitBuilder';
 import { createInitialGameSession, transitionGameSessionStep } from '../gameSessionEngine';
 import { lookupKeywordDefinition } from '../keywordGlossary';
-import type { Datasheet, Detachment, Enhancement, SavedRoster, Stratagem } from '../../types/rules';
+import { getRecommendedDispositions } from '../missionEngine';
+import type { CoreDataBundle, Datasheet, Detachment, Enhancement, SavedRoster, Stratagem } from '../../types/rules';
 
 describe('Milestone 1: Wahapedia 11th Ed Multiline Pipe CSV Parser & Normalizers', () => {
   it('parses pipe-delimited CSV rows containing embedded newlines inside HTML descriptions', () => {
@@ -948,6 +949,35 @@ describe('Milestone 2 & 3: 11th Ed Attachment Validator & Dynamic CompositeUnit 
     expect(chapterIssue?.severity).toBe('error');
     expect(chapterIssue?.message).toContain('Dark Angels');
     expect(chapterIssue?.message).toContain('Ultramarines');
+  });
+
+  it('verifies core.json includes all 11th Edition detachments with DP and Force Dispositions for match setup', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const corePath = path.resolve(process.cwd(), 'public/data/wahapedia-11ed/core.json');
+    expect(fs.existsSync(corePath)).toBe(true);
+
+    const coreBundle: CoreDataBundle = JSON.parse(fs.readFileSync(corePath, 'utf8'));
+    expect(Array.isArray(coreBundle.detachments)).toBe(true);
+    expect(coreBundle.detachments.length).toBeGreaterThan(200);
+
+    // Verify non-Space Marine factions (e.g., Adeptus Custodes 'AC', Necrons 'NEC', Aeldari 'AE') have detachments in core
+    const acDetachments = coreBundle.detachments.filter((d) => d.factionId === 'AC');
+    expect(acDetachments.length).toBeGreaterThan(0);
+    expect(acDetachments.some((d) => d.name === 'Null Maiden Vigil')).toBe(true);
+
+    const necDetachments = coreBundle.detachments.filter((d) => d.factionId === 'NEC');
+    expect(necDetachments.length).toBeGreaterThan(0);
+    expect(necDetachments.every((d) => d.dp >= 1 && d.dp <= 3)).toBe(true);
+
+    // Verify each detachment has forceDisposition and valid abilities attached
+    const withDisposition = coreBundle.detachments.filter((d) => d.forceDisposition);
+    expect(withDisposition.length).toBeGreaterThan(150);
+
+    // Verify recommended dispositions can be resolved for any opponent detachment without faction sync
+    const sampleDet = acDetachments[0];
+    const recDisps = getRecommendedDispositions([sampleDet.id], coreBundle.detachments);
+    expect(recDisps.length).toBeGreaterThan(0);
   });
 });
 

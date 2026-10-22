@@ -13,6 +13,7 @@ import type {
   Stratagem,
 } from '../types/rules';
 import { createInitialGameSession } from '../engine/gameSessionEngine';
+import defaultRosterData from '../config/defaultRoster.json';
 
 export interface SyncMetaRecord {
   key: string;
@@ -66,6 +67,18 @@ export class LexTacticaDatabase extends Dexie {
       await tx.table('enhancements').clear();
       await tx.table('coreActions').clear();
     });
+
+    this.version(4).stores({}).upgrade(async (tx) => {
+      // Upgrade starter roster to 10.21.26 2k Crimson Fists list
+      const existingStarter = await tx.table('savedRosters').get('starter_crimson_fists_2k');
+      if (existingStarter && (existingStarter.units?.length !== 14 || existingStarter.totalPoints !== 1990)) {
+        await tx.table('savedRosters').put({
+          ...(defaultRosterData as unknown as SavedRoster),
+          updatedAt: Date.now(),
+        });
+        await tx.table('gameSessions').delete('session_starter_crimson_fists_2k');
+      }
+    });
   }
 }
 
@@ -87,9 +100,14 @@ export async function requestPersistentStorage(): Promise<boolean> {
 }
 
 /**
- * Ensures `core.json` (Factions, Sources, Core Stratagems, 30 Core Actions) is loaded into IndexedDB.
+ * Ensures `core.json` (Factions, Sources, Detachments, Core Stratagems, 30 Core Actions) is loaded into IndexedDB.
  */
-export async function ensureCoreDataSynced(): Promise<{ lastUpdate: string; factions: Faction[]; lastSyncedAt?: number }> {
+export async function ensureCoreDataSynced(): Promise<{
+  lastUpdate: string;
+  factions: Faction[];
+  detachments: Detachment[];
+  lastSyncedAt?: number;
+}> {
   await requestPersistentStorage();
 
   const res = await fetch('./data/wahapedia-11ed/core.json');
@@ -98,21 +116,30 @@ export async function ensureCoreDataSynced(): Promise<{ lastUpdate: string; fact
   }
   const coreBundle = (await res.json()) as CoreDataBundle;
   const existingLastUpdate = await db.meta.get('core_last_update');
+  const detachmentsCoreSynced = await db.meta.get('core_detachments_synced');
   const now = Date.now();
 
-  if (existingLastUpdate?.value !== coreBundle.lastUpdate) {
+  if (existingLastUpdate?.value !== coreBundle.lastUpdate || !detachmentsCoreSynced) {
     await db.transaction(
       'rw',
-      [db.meta, db.factions, db.sources, db.stratagems, db.coreActions],
+      [db.meta, db.factions, db.sources, db.detachments, db.stratagems, db.coreActions],
       async () => {
         await db.factions.bulkPut(coreBundle.factions);
         await db.sources.bulkPut(coreBundle.sources);
+        if (coreBundle.detachments && coreBundle.detachments.length > 0) {
+          await db.detachments.bulkPut(coreBundle.detachments);
+        }
         await db.stratagems.filter((s) => s.isCore).delete();
         await db.stratagems.bulkPut(coreBundle.coreStratagems);
         await db.coreActions.bulkPut(coreBundle.coreActions);
         await db.meta.put({
           key: 'core_last_update',
           value: coreBundle.lastUpdate,
+          updatedAt: now,
+        });
+        await db.meta.put({
+          key: 'core_detachments_synced',
+          value: 'true',
           updatedAt: now,
         });
         await db.meta.put({
@@ -139,6 +166,7 @@ export async function ensureCoreDataSynced(): Promise<{ lastUpdate: string; fact
   return {
     lastUpdate: coreBundle.lastUpdate,
     factions: coreBundle.factions,
+    detachments: coreBundle.detachments || [],
     lastSyncedAt: lastSyncRecord?.updatedAt ?? existingLastUpdate?.updatedAt ?? now,
   };
 }
@@ -213,123 +241,41 @@ export async function syncAllFactionsForOffline(
 }
 
 /**
- * Creates a default starter 11th Edition Space Marines ("Crimson Fists 2K") roster
- * modeled after the 40K Playbook reference screenshot if the user has no saved rosters yet.
+ * Creates or updates the default starter 11th Edition Space Marines ("10.21.26 2k Crimson Fists") roster
+ * modeled after 10.21.26 2k Crimson Fists.rosz.
  */
 export async function ensureStarterRosterSeeded(): Promise<SavedRoster> {
   const existing = await db.savedRosters.orderBy('updatedAt').reverse().first();
-  if (existing) return existing;
+
+  // If the user already has custom rosters (or already updated to the 10.21.26 default roster),
+  // check if it's the legacy placeholder roster (11 units / != 1990 points).
+  // If it's the legacy placeholder, upgrade it to the new 10.21.26 2k Crimson Fists list!
+  const isLegacyStarter =
+    existing &&
+    (existing.id === 'starter_crimson_fists_2k' || existing.name === 'CRIMSON FISTS 2K') &&
+    (existing.units.length !== 14 || existing.totalPoints !== 1990);
+
+  // Also check if an older starter roster exists in the database even if another roster was last active
+  const legacyStarterInDb = await db.savedRosters.get('starter_crimson_fists_2k');
+  if (legacyStarterInDb && (legacyStarterInDb.units?.length !== 14 || legacyStarterInDb.totalPoints !== 1990)) {
+    await db.savedRosters.put({
+      ...(defaultRosterData as unknown as SavedRoster),
+      updatedAt: Date.now(),
+    });
+    await db.gameSessions.delete('session_starter_crimson_fists_2k');
+  }
+
+  if (existing && !isLegacyStarter) return existing;
 
   await ensureFactionDataSynced('SM');
-  const smDatasheets = await db.datasheets.where('factionId').equals('SM').toArray();
-  const smDetachments = await db.detachments.where('factionId').equals('SM').toArray();
-  const smEnhancements = await db.enhancements.where('factionId').equals('SM').toArray();
 
-  const findDs = (name: string) =>
-    smDatasheets.find((d) => d.name.toLowerCase() === name.toLowerCase()) ??
-    smDatasheets.find((d) => d.name.toLowerCase().includes(name.toLowerCase()));
-
-  // Pick up to 3 modular detachments totaling <= 3 DP (or fallback to first available detachments)
-  const pickedDetachments: Detachment[] = [];
-  let dpSum = 0;
-  for (const d of smDetachments) {
-    if (dpSum + d.dp <= 3 && pickedDetachments.length < 3) {
-      pickedDetachments.push(d);
-      dpSum += d.dp;
-    }
-  }
-
-  const desiredUnits: Array<{
-    name: string;
-    models: number;
-    pts: number;
-    isLeaderFor?: string;
-    isSupportFor?: string;
-  }> = [
-    { name: 'Chaplain with Jump Pack', models: 1, pts: 75 },
-    { name: 'Librarian', models: 1, pts: 65 },
-    { name: 'Librarian in Terminator Armour', models: 1, pts: 75 },
-    { name: 'Lieutenant', models: 1, pts: 65 },
-    { name: 'Techmarine', models: 1, pts: 55 },
-    { name: 'Intercessor Squad', models: 10, pts: 160 },
-    { name: 'Bladeguard Veteran Squad', models: 6, pts: 180 },
-    { name: 'Scout Squad', models: 5, pts: 65 },
-    { name: 'Terminator Squad', models: 5, pts: 175 },
-    { name: 'Vanguard Veteran Squad with Jump Packs', models: 10, pts: 210 },
-    { name: 'Ballistus Dreadnought', models: 1, pts: 140 },
-  ];
-
-  const units: SavedRoster['units'] = [];
-  for (let i = 0; i < desiredUnits.length; i++) {
-    const spec = desiredUnits[i];
-    const ds = findDs(spec.name);
-    if (!ds) continue;
-    const enhForDet = smEnhancements.find(
-      (e) =>
-        pickedDetachments.some((d) => d.id === e.detachmentId) &&
-        ds.validEnhancementIds.includes(e.id) &&
-        !e.isUnitUpgrade
-    );
-
-    units.push({
-      instanceId: `starter_unit_${i + 1}`,
-      datasheetId: ds.id,
-      startingModels: spec.models,
-      startingWoundsPerModel: ds.models[0]?.W ?? 2,
-      points: spec.pts,
-      enhancementIds: i === 2 && enhForDet ? [enhForDet.id] : [],
-      initialStatus: 'on_battlefield',
-    });
-  }
-
-  // Attach Librarian in Terminator Armour -> Terminator Squad, Chaplain with Jump Pack -> Vanguard Veterans,
-  // and Librarian + Lieutenant -> Intercessor Squad (demonstrating 1 Leader + 1 Support / Composite Cards!)
-  const findUnitInstance = (nameSubstr: string) =>
-    units.find((u) => {
-      const ds = smDatasheets.find((d) => d.id === u.datasheetId);
-      return ds?.name.toLowerCase() === nameSubstr.toLowerCase();
-    });
-
-  const termSquad = findUnitInstance('Terminator Squad');
-  const termLib = findUnitInstance('Librarian in Terminator Armour');
-  if (termSquad && termLib) {
-    termSquad.attachedLeaderInstanceId = termLib.instanceId;
-  }
-
-  const vanVets = findUnitInstance('Vanguard Veteran Squad with Jump Packs');
-  const jumpChaplain = findUnitInstance('Chaplain with Jump Pack');
-  if (vanVets && jumpChaplain) {
-    vanVets.attachedLeaderInstanceId = jumpChaplain.instanceId;
-  }
-
-  const intercessors = findUnitInstance('Intercessor Squad');
-  const librarian = findUnitInstance('Librarian');
-  const lieutenant = findUnitInstance('Lieutenant');
-  if (intercessors && librarian) {
-    intercessors.attachedLeaderInstanceId = librarian.instanceId;
-  }
-  if (intercessors && lieutenant) {
-    intercessors.attachedSupportInstanceId = lieutenant.instanceId;
-  }
-
-  const totalPoints = units.reduce((s, u) => s + u.points, 0);
   const starterRoster: SavedRoster = {
-    id: 'starter_crimson_fists_2k',
-    name: 'CRIMSON FISTS 2K',
-    factionId: 'SM',
-    subFactionName: 'Imperial Fists',
-    battleSize: 'strike_force',
-    detachmentIds: pickedDetachments.map((d) => d.id),
-    forceDisposition: pickedDetachments[0]?.forceDisposition ?? 'Take and Hold',
-    totalPoints,
-    totalDetachmentPoints: dpSum || 1,
-    units,
+    ...(defaultRosterData as unknown as SavedRoster),
     updatedAt: Date.now(),
   };
 
   await db.savedRosters.put(starterRoster);
   const initialSession = createInitialGameSession(starterRoster, 'user');
-  // Start in Charge Phase or Command Phase so user immediately sees rich playbook content
   initialSession.currentPhase = 'command';
   initialSession.userCp = 1;
   initialSession.opponentCp = 1;

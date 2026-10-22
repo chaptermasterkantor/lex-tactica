@@ -1,0 +1,228 @@
+{
+  "id": "starter_crimson_fists_2k",
+  "name": "10.21.26 2k Crimson Fists",
+  "factionId": "SM",
+  "subFactionName": "Imperial Fists",
+  "battleSize": "strike_force",
+  "detachmentIds": [
+    "000001238",
+    "000001235",
+    "000001237"
+  ],
+  "forceDisposition": "Take and Hold",
+  "totalPoints": 1990,
+  "totalDetachmentPoints": 3,
+  "units": [
+    {
+      "instanceId": "cf2k_unit_1",
+      "datasheetId": "000002677",
+      "startingModels": 1,
+      "startingWoundsPerModel": 5,
+      "points": 75,
+      "equippedWeaponIds": [
+        "000002677_1_1",
+        "000002677_2_1"
+      ],
+      "enhancementIds": [],
+      "initialStatus": "on_battlefield"
+    },
+    {
+      "instanceId": "cf2k_unit_2",
+      "datasheetId": "000001165",
+      "startingModels": 1,
+      "startingWoundsPerModel": 4,
+      "points": 70,
+      "equippedWeaponIds": [
+        "000001165_1_1",
+        "000001165_2_1"
+      ],
+      "enhancementIds": [],
+      "initialStatus": "on_battlefield"
+    },
+    {
+      "instanceId": "cf2k_unit_3",
+      "datasheetId": "000000135",
+      "startingModels": 1,
+      "startingWoundsPerModel": 6,
+      "points": 115,
+      "equippedWeaponIds": [
+        "000000135_4_1",
+        "000000135_6_1"
+      ],
+      "enhancementIds": [
+        "000011200003"
+      ],
+      "initialStatus": "on_battlefield"
+    },
+    {
+      "instanceId": "cf2k_unit_4",
+      "datasheetId": "000000112",
+      "startingModels": 1,
+      "startingWoundsPerModel": 4,
+      "points": 75,
+      "equippedWeaponIds": [
+        "000000112_1_1",
+        "000000112_2_1"
+      ],
+      "enhancementIds": [],
+      "initialStatus": "on_battlefield"
+    },
+    {
+      "instanceId": "cf2k_unit_5",
+      "datasheetId": "000001157",
+      "startingModels": 5,
+      "startingWoundsPerModel": 2,
+      "points": 85,
+      "equippedWeaponIds": [
+        "000001157_1_1",
+        "000001157_2_1",
+        "000001157_3_2",
+        "000001157_4_1",
+        "000001157_5_2",
+        "000001157_9_1",
+        "000001157_10_1"
+      ],
+      "enhancementIds": [],
+      "initialStatus": "on_battlefield"
+    },
+    {
+      "instanceId": "cf2k_unit_6",
+      "datasheetId": "000000071",
+      "startingModels": 6,
+      "startingWoundsPerModel": 3,
+      "points": 180,
+      "equippedWeaponIds": [
+        "000000071_1_1",
+        "000000071_5_1"
+      ],
+      "enhancementIds": [],
+      "attachedSupportInstanceId": "cf2k_unit_2",
+      "initialStatus": "on_battlefield"
+    },
+    {
+      "instanceId": "cf2k_unit_7",
+      "datasheetId": "000004231",
+      "startingModels": 3,
+      "startingWoundsPerModel": 3,
+      "points": 100,
+      "equippedWeaponIds": [
+        "000004231_1_1",
+        "000004231_2_1",
+        "000004231_3_1"
+      ],
+      "enhancementIds": [],
+      "initialStatus": "on_battlefield"
+    },
+    {
+      "instanceId": "cf2k_unit_8",
+      "datasheetId": "000004249",
+      "startingModels": 3,
+      "startingWoundsPerModel": 3,
+      "points": 100,
+      "equippedWeaponIds": [
+        "000004249_1_1",
+        "000004249_2_1",
+        "000004249_3_2",
+        "000004249_6_1"
+      ],
+      "enhancementIds": [],
+      "initialStatus": "on_battlefield"
+    },
+    {
+      "instanceId": "cf2k_unit_9",
+      "datasheetId": "000001160",
+      "startingModels": 5,
+      "startingWoundsPerModel": 2,
+      "points": 65,
+      "equippedWeaponIds": [
+        "000001160_1_1",
+        "000001160_2_1",
+        "000001160_3_1",
+        "000001160_9_1"
+      ],
+      "enhancementIds": [],
+      "initialStatus": "on_battlefield"
+    },
+    {
+      "instanceId": "cf2k_unit_10",
+      "datasheetId": "000001183",
+      "startingModels": 10,
+      "startingWoundsPerModel": 3,
+      "points": 390,
+      "equippedWeaponIds": [
+        "000001183_1_1",
+        "000001183_2_1",
+        "000001183_3_2",
+        "000001183_5_1",
+        "000001183_8_1"
+      ],
+      "enhancementIds": [],
+      "attachedLeaderInstanceId": "cf2k_unit_3",
+      "attachedSupportInstanceId": "cf2k_unit_1",
+      "initialStatus": "on_battlefield"
+    },
+    {
+      "instanceId": "cf2k_unit_11",
+      "datasheetId": "000000147",
+      "startingModels": 10,
+      "startingWoundsPerModel": 2,
+      "points": 220,
+      "equippedWeaponIds": [
+        "000000147_1_1",
+        "000000147_4_1",
+        "000000147_5_1"
+      ],
+      "enhancementIds": [],
+      "attachedLeaderInstanceId": "cf2k_unit_4",
+      "initialStatus": "on_battlefield"
+    },
+    {
+      "instanceId": "cf2k_unit_12",
+      "datasheetId": "000000091",
+      "startingModels": 1,
+      "startingWoundsPerModel": 12,
+      "points": 150,
+      "equippedWeaponIds": [
+        "000000091_1_1",
+        "000000091_2_1",
+        "000000091_3_2",
+        "000000091_4_1",
+        "000000091_5_1"
+      ],
+      "enhancementIds": [],
+      "initialStatus": "on_battlefield"
+    },
+    {
+      "instanceId": "cf2k_unit_13",
+      "datasheetId": "000002711",
+      "startingModels": 1,
+      "startingWoundsPerModel": 9,
+      "points": 105,
+      "equippedWeaponIds": [
+        "000002711_1_1",
+        "000002711_2_1",
+        "000002711_4_1",
+        "000002711_5_1"
+      ],
+      "enhancementIds": [],
+      "initialStatus": "on_battlefield"
+    },
+    {
+      "instanceId": "cf2k_unit_14",
+      "datasheetId": "000002722",
+      "startingModels": 1,
+      "startingWoundsPerModel": 16,
+      "points": 260,
+      "equippedWeaponIds": [
+        "000002722_1_1",
+        "000002722_3_1",
+        "000002722_4_1",
+        "000002722_5_2",
+        "000002722_6_1",
+        "000002722_7_1"
+      ],
+      "enhancementIds": [],
+      "initialStatus": "on_battlefield"
+    }
+  ]
+}

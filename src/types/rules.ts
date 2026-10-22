@@ -457,6 +457,7 @@ export interface CoreDataBundle {
   lastUpdate: string;
   factions: Faction[];
   sources: RulesSource[];
+  detachments: Detachment[];
   coreStratagems: Stratagem[];
   coreActions: CoreAction[];
   sharedAbilities: Array<{

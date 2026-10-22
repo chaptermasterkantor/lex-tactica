@@ -68,7 +68,9 @@ function matchEquippedWeaponIds(rawWeaponNames: string[], datasheet: Datasheet):
         fullWeaponName === normW ||
         baseWeaponName === normW ||
         fullWeaponName.includes(normW) ||
-        normW.includes(baseWeaponName)
+        normW.includes(baseWeaponName) ||
+        (normW.includes('power weapon') && baseWeaponName.includes('power sword')) ||
+        (normW.includes('power sword') && baseWeaponName.includes('power weapon'))
       ) {
         matchedIds.add(w.id);
       }

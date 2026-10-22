@@ -523,6 +523,7 @@ async function buildWahapediaData() {
     lastUpdate: liveLastUpdate,
     factions,
     sources,
+    detachments: [...detachmentsById.values()],
     coreStratagems,
     coreActions,
     sharedAbilities: sharedAbilitiesList,

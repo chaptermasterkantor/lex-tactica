@@ -70,6 +70,7 @@ export const App: React.FC = () => {
 
   const [datasheets, setDatasheets] = useState<Datasheet[]>([]);
   const [detachments, setDetachments] = useState<Detachment[]>([]);
+  const [allDetachments, setAllDetachments] = useState<Detachment[]>([]);
   const [enhancements, setEnhancements] = useState<Enhancement[]>([]);
   const [stratagems, setStratagems] = useState<Stratagem[]>([]);
   const [coreActions, setCoreActions] = useState<CoreAction[]>([]);
@@ -128,6 +129,7 @@ export const App: React.FC = () => {
           setLastSyncedAt(coreInfo.lastSyncedAt);
         }
         setFactions(coreInfo.factions);
+        setAllDetachments(coreInfo.detachments);
 
         const activeRoster = await ensureStarterRosterSeeded();
         const rostersList = await db.savedRosters.orderBy('updatedAt').reverse().toArray();
@@ -384,6 +386,8 @@ export const App: React.FC = () => {
         setOfflineSyncStatus(`Caching ${done}/${total}: ${name}...`);
       });
       setLastSyncedAt(syncTimestamp);
+      const allDets = await db.detachments.toArray();
+      setAllDetachments(allDets);
       setOfflineSyncStatus('✓ All 25 Factions cached in IndexedDB for 100% offline play!');
       setTimeout(() => setOfflineSyncStatus(null), 5000);
     } catch (err: any) {
@@ -1012,7 +1016,7 @@ export const App: React.FC = () => {
           currentRoster={roster}
           allRosters={allRosters}
           factions={factions}
-          allDetachments={detachments}
+          allDetachments={allDetachments.length > 0 ? allDetachments : detachments}
           onStartGame={async (newSession) => {
             await persistSession(newSession);
             setIsSetupWizardOpen(false);
