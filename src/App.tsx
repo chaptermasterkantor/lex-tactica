@@ -64,6 +64,7 @@ import { PhaseStratagemsDrawer } from './components/PhaseStratagemsDrawer';
 import { PhaseActionChecklist } from './components/PhaseActionChecklist';
 import { RosterEditorModal } from './components/RosterEditorModal';
 import { LexTacticaLogo } from './components/LexTacticaLogo';
+import dornImg from './assets/dorn.png';
 import { WelcomeModal } from './components/WelcomeModal';
 import { GameSetupWizardModal } from './components/GameSetupWizardModal';
 import { MatchSummaryModal } from './components/MatchSummaryModal';
@@ -177,6 +178,15 @@ export const App: React.FC = () => {
   const [offlineSyncStatus, setOfflineSyncStatus] = useState<string | null>(null);
   const [isSetupWizardOpen, setIsSetupWizardOpen] = useState(false);
   const [isMatchSummaryOpen, setIsMatchSummaryOpen] = useState(false);
+  const [isDornDismissed, setIsDornDismissed] = useState(false);
+  const [isDornFading, setIsDornFading] = useState(false);
+
+  const handleDornClick = () => {
+    setIsDornFading(true);
+    setTimeout(() => {
+      setIsDornDismissed(true);
+    }, 700);
+  };
 
   const updateCoachState = (updater: (prev: CoachState) => CoachState) => {
     setCoachState((prev) => {
@@ -703,20 +713,43 @@ export const App: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Tactical Coach Toggle Pill */}
-            <button
-              type="button"
-              onClick={() => handleSetCoachMode(!coachState.enabled)}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition ${
-                coachState.enabled
-                  ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/50'
-                  : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-800'
-              }`}
-              title="Toggle Tactical Coach guidance (1-line phase prompts, auto-expanded first-visit sequences, and stat underline hints)"
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Coach: {coachState.enabled ? 'ON' : 'OFF'}</span>
-            </button>
+            {/* Tactical Coach Toggle Pill & Rogal Dorn Easter Egg */}
+            <div className="inline-flex items-center gap-1.5">
+              {!isDornDismissed && (
+                <button
+                  type="button"
+                  onClick={handleDornClick}
+                  title="Lord Commander Rogal Dorn (Click to dismiss)"
+                  aria-label="Lord Commander Rogal Dorn"
+                  className={`relative inline-flex items-center justify-center transition-all duration-700 ease-out focus:outline-none ${
+                    isDornFading
+                      ? 'opacity-0 scale-50 max-w-0 -mr-1.5 pointer-events-none'
+                      : 'opacity-100 scale-100 max-w-10 hover:scale-110 active:scale-95 cursor-pointer'
+                  }`}
+                >
+                  <img
+                    src={dornImg}
+                    alt="Rogal Dorn Coach"
+                    className="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)] select-none pointer-events-none"
+                    draggable={false}
+                  />
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleSetCoachMode(!coachState.enabled)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition ${
+                  coachState.enabled
+                    ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/50'
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-800'
+                }`}
+                title="Toggle Tactical Coach guidance (1-line phase prompts, auto-expanded first-visit sequences, and stat underline hints)"
+              >
+                <GraduationCap className="w-3.5 h-3.5" />
+                <span>Coach: {coachState.enabled ? 'ON' : 'OFF'}</span>
+              </button>
+            </div>
 
             <button
               type="button"
