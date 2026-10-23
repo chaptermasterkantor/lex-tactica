@@ -225,6 +225,7 @@ export const GameSetupWizardModal: React.FC<GameSetupWizardModalProps> = ({
       detachmentIds: effectiveOppDetachments.map((d) => d.id),
       detachmentNames: effectiveOppDetachments.map((d) => d.name),
       forceDisposition: oppDisposition,
+      opponentRosterId: oppRosterMode === 'saved' && selectedOppRosterId ? selectedOppRosterId : undefined,
     };
 
     const matchSetup: MatchSetupConfig = {
@@ -255,6 +256,7 @@ export const GameSetupWizardModal: React.FC<GameSetupWizardModalProps> = ({
     const initialSession: GameSessionState = {
       id: `session-${Date.now()}`,
       rosterId: effectiveUserRoster?.id || 'manual-roster',
+      opponentRosterId: oppRosterMode === 'saved' && selectedOppRosterId ? selectedOppRosterId : undefined,
       battleRound: 1,
       currentTurn: firstTurn === 'user' ? 'your_turn' : 'opponent_turn',
       currentPhase: 'pre_game',

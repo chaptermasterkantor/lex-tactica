@@ -68,6 +68,7 @@ import dornImg from './assets/dorn.png';
 import { WelcomeModal } from './components/WelcomeModal';
 import { GameSetupWizardModal } from './components/GameSetupWizardModal';
 import { MatchSummaryModal } from './components/MatchSummaryModal';
+import { MathhammerModal } from './components/MathhammerModal';
 
 interface CoachState {
   enabled: boolean;
@@ -178,8 +179,37 @@ export const App: React.FC = () => {
   const [offlineSyncStatus, setOfflineSyncStatus] = useState<string | null>(null);
   const [isSetupWizardOpen, setIsSetupWizardOpen] = useState(false);
   const [isMatchSummaryOpen, setIsMatchSummaryOpen] = useState(false);
+  const [isMathhammerOpen, setIsMathhammerOpen] = useState(false);
+  const [mathhammerAttackerId, setMathhammerAttackerId] = useState<string | null>(null);
+  const [mathhammerDefenderId, setMathhammerDefenderId] = useState<string | null>(null);
+  const [mathhammerMode, setMathhammerMode] = useState<'Ranged' | 'Melee'>('Ranged');
   const [isDornDismissed, setIsDornDismissed] = useState(false);
   const [isDornFading, setIsDornFading] = useState(false);
+
+  const handleOpenMathhammer = (unitInstanceId?: string) => {
+    if (unitInstanceId && session) {
+      if (session.currentTurn === 'your_turn') {
+        setMathhammerAttackerId(unitInstanceId);
+        setMathhammerDefenderId(null);
+        setMathhammerMode(
+          session.currentPhase === 'fight' || session.currentPhase === 'charge'
+            ? 'Melee'
+            : 'Ranged'
+        );
+      } else {
+        setMathhammerDefenderId(unitInstanceId);
+        setMathhammerAttackerId(null);
+        setMathhammerMode(session.currentPhase === 'fight' ? 'Melee' : 'Ranged');
+      }
+    } else if (session) {
+      setMathhammerMode(
+        session.currentPhase === 'fight' || session.currentPhase === 'charge'
+          ? 'Melee'
+          : 'Ranged'
+      );
+    }
+    setIsMathhammerOpen(true);
+  };
 
   const handleDornClick = () => {
     setIsDornFading(true);
@@ -772,6 +802,16 @@ export const App: React.FC = () => {
 
                 <button
                   type="button"
+                  onClick={() => handleOpenMathhammer()}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 transition"
+                  title="Open Mathhammer Combat & Survival Calculator"
+                >
+                  <Crosshair className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Math</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={handleNewGame}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition"
                   title="Reset game session to Pre-game"
@@ -1223,6 +1263,7 @@ export const App: React.FC = () => {
                   onUpdateUnitState={handleUpdateUnitState}
                   onUseStratagemOnUnit={handleUseStratagemOnUnit}
                   onOpenUnitStratagems={handleOpenUnitStratagems}
+                  onOpenMathhammer={handleOpenMathhammer}
                 />
               ))}
             </div>
@@ -1251,6 +1292,7 @@ export const App: React.FC = () => {
                   onUpdateUnitState={handleUpdateUnitState}
                   onUseStratagemOnUnit={handleUseStratagemOnUnit}
                   onOpenUnitStratagems={handleOpenUnitStratagems}
+                  onOpenMathhammer={handleOpenMathhammer}
                 />
               ))}
             </div>
@@ -1354,6 +1396,17 @@ export const App: React.FC = () => {
             <span className="hidden sm:inline">Rules</span>
           </button>
 
+          {/* 5. Mathhammer Calculator */}
+          <button
+            type="button"
+            onClick={() => handleOpenMathhammer()}
+            className="min-w-[44px] min-h-[44px] px-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 inline-flex items-center justify-center gap-1.5 text-xs font-bold transition"
+            title="Open Mathhammer Calculator"
+          >
+            <Crosshair className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="hidden sm:inline">Math</span>
+          </button>
+
           {/* 5. Next Phase / Finish Match */}
           {nextStep ? (
             <button
@@ -1452,6 +1505,31 @@ export const App: React.FC = () => {
         onStartNewMatch={() => {
           setIsMatchSummaryOpen(false);
           handleNewGame();
+        }}
+      />
+
+      <MathhammerModal
+        isOpen={isMathhammerOpen}
+        onClose={() => setIsMathhammerOpen(false)}
+        userRoster={roster}
+        userCompositeUnits={compositeUnits}
+        allRosters={allRosters}
+        factions={factions}
+        allDatasheets={datasheets}
+        allDetachments={allDetachments.length > 0 ? allDetachments : detachments}
+        allEnhancements={enhancements}
+        opponentRosterId={session.opponentRosterId || session.matchSetup?.opponent.opponentRosterId}
+        initialAttackerInstanceId={mathhammerAttackerId}
+        initialDefenderInstanceId={mathhammerDefenderId}
+        initialCombatMode={mathhammerMode}
+        onSaveOpponentRoster={async (oppRoster) => {
+          const updated = [oppRoster, ...allRosters.filter((r) => r.id !== oppRoster.id)];
+          setAllRosters(updated);
+        }}
+        onSelectOpponentRosterId={(oppId) => {
+          if (session) {
+            persistSession({ ...session, opponentRosterId: oppId, updatedAt: Date.now() });
+          }
         }}
       />
 

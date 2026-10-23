@@ -344,6 +344,7 @@ export interface MatchOpponentConfig {
   detachmentIds: string[];
   detachmentNames: string[];
   forceDisposition: ForceDisposition;
+  opponentRosterId?: string;
   notes?: string;
 }
 
@@ -372,6 +373,7 @@ export interface MatchSetupConfig {
 export interface GameSessionState {
   id: string;
   rosterId: string;
+  opponentRosterId?: string;
   battleRound: number;
   currentTurn: 'your_turn' | 'opponent_turn';
   currentPhase: Phase;

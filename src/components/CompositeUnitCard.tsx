@@ -41,6 +41,7 @@ interface CompositeUnitCardProps {
   onUpdateUnitState: (instanceId: string, updater: (prev: LiveUnitState) => LiveUnitState) => void;
   onUseStratagemOnUnit: (stratagem: Stratagem, unitInstanceId: string) => void;
   onOpenUnitStratagems?: (unitInstanceId: string) => void;
+  onOpenMathhammer?: (unitInstanceId: string) => void;
 }
 
 export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
@@ -55,6 +56,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
   onUpdateUnitState,
   onUseStratagemOnUnit,
   onOpenUnitStratagems,
+  onOpenMathhammer,
 }) => {
   const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
   const [showWeaponsOverride, setShowWeaponsOverride] = useState(false);
@@ -450,6 +452,18 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
             </button>
           )}
 
+          {onOpenMathhammer && !isDestroyed && (
+            <button
+              type="button"
+              onClick={() => onOpenMathhammer(primaryUnit.instanceId)}
+              className="inline-flex items-center justify-center gap-1 px-2.5 min-h-[44px] rounded-lg text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/40 transition"
+              title="Open Mathhammer Calculator for this unit"
+            >
+              <Crosshair className="w-3.5 h-3.5 text-amber-400" />
+              <span>Calc</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setManualExpanded(true)}
@@ -740,6 +754,18 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
             >
               <Zap className="w-3.5 h-3.5" />
               <span>{unitEligiblePhaseStrats.length} Stratagems</span>
+            </button>
+          )}
+
+          {onOpenMathhammer && !isDestroyed && (
+            <button
+              type="button"
+              onClick={() => onOpenMathhammer(primaryUnit.instanceId)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 transition"
+              title="Open Mathhammer Combat Calculator for this unit"
+            >
+              <Crosshair className="w-3.5 h-3.5 text-amber-400" />
+              <span>Calc</span>
             </button>
           )}
 
