@@ -488,7 +488,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   keyword="STAT_RNG"
                   customLabel="Range"
                   variant="stat_helper"
-                  coachUnderline={coachEnabled}
+                  coachUnderline={true}
                 />
               </th>
               <th className="py-1.5 px-2 text-center">
@@ -496,7 +496,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   keyword="STAT_A"
                   customLabel="A"
                   variant="stat_helper"
-                  coachUnderline={coachEnabled}
+                  coachUnderline={true}
                 />
               </th>
               <th className="py-1.5 px-2 text-center">
@@ -504,7 +504,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   keyword="STAT_BS_WS"
                   customLabel="BS/WS"
                   variant="stat_helper"
-                  coachUnderline={coachEnabled}
+                  coachUnderline={true}
                 />
               </th>
               <th className="py-1.5 px-2 text-center">
@@ -512,7 +512,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   keyword="STAT_S"
                   customLabel="S"
                   variant="stat_helper"
-                  coachUnderline={coachEnabled}
+                  coachUnderline={true}
                 />
               </th>
               <th className="py-1.5 px-2 text-center">
@@ -520,7 +520,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   keyword="STAT_AP"
                   customLabel="AP"
                   variant="stat_helper"
-                  coachUnderline={coachEnabled}
+                  coachUnderline={true}
                 />
               </th>
               <th className="py-1.5 px-2 text-center">
@@ -528,7 +528,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   keyword="STAT_D"
                   customLabel="D"
                   variant="stat_helper"
-                  coachUnderline={coachEnabled}
+                  coachUnderline={true}
                 />
               </th>
             </tr>
@@ -597,7 +597,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                         keyword={`STRENGTH ${String(weapon.S).trim()}`}
                         customLabel={String(weapon.S)}
                         variant="strength_calc"
-                        coachUnderline={coachEnabled}
+                        coachUnderline={true}
                       />
                     ) : (
                       weapon.S
@@ -1128,7 +1128,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   keyword="STAT_M"
                   customLabel="M"
                   variant="stat_helper"
-                  coachUnderline={coachEnabled}
+                  coachUnderline={true}
                 />
               </th>
               <th className="py-1.5 px-2 text-center">
@@ -1136,7 +1136,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   keyword="STAT_T"
                   customLabel="T"
                   variant="stat_helper"
-                  coachUnderline={coachEnabled}
+                  coachUnderline={true}
                 />
               </th>
               <th className="py-1.5 px-2 text-center">
@@ -1144,7 +1144,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   keyword="STAT_SV"
                   customLabel="Sv"
                   variant="stat_helper"
-                  coachUnderline={coachEnabled}
+                  coachUnderline={true}
                 />
               </th>
               <th className="py-1.5 px-2 text-center">
@@ -1152,7 +1152,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   keyword="STAT_INV"
                   customLabel="Inv"
                   variant="stat_helper"
-                  coachUnderline={coachEnabled}
+                  coachUnderline={true}
                 />
               </th>
               <th className="py-1.5 px-2 text-center">
@@ -1160,7 +1160,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   keyword="STAT_W"
                   customLabel="W"
                   variant="stat_helper"
-                  coachUnderline={coachEnabled}
+                  coachUnderline={true}
                 />
               </th>
               <th className="py-1.5 px-2 text-center">
@@ -1168,7 +1168,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   keyword="STAT_LD"
                   customLabel="Ld"
                   variant="stat_helper"
-                  coachUnderline={coachEnabled}
+                  coachUnderline={true}
                 />
               </th>
               <th className="py-1.5 px-2 text-center">
@@ -1176,7 +1176,7 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                   keyword="STAT_OC"
                   customLabel="OC"
                   variant="stat_helper"
-                  coachUnderline={coachEnabled}
+                  coachUnderline={true}
                 />
               </th>
             </tr>

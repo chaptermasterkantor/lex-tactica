@@ -91,15 +91,15 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
 }) => {
   const [expandedRuleIds, setExpandedRuleIds] = useState<Record<string, boolean>>({});
   const [showSequenceGuide, setShowSequenceGuide] = useState(
-    Boolean(coachEnabled && !hasSeenPhaseBefore)
+    Boolean(coachEnabled)
   );
   const [showPassiveBuffs, setShowPassiveBuffs] = useState(false);
 
-  // Auto-expand sequence guide the first time a phase is visited when Tactical Coach is ON,
-  // and auto-collapse once the phase has already been seen (Scaffolding Decay).
+  // When Tactical Coach is ON, auto-expand the phase sequence guide whenever entering a phase
+  // and re-expand whenever Coach is toggled ON. When Coach is OFF, stay collapsed.
   useEffect(() => {
-    setShowSequenceGuide(Boolean(coachEnabled && !hasSeenPhaseBefore));
-  }, [currentPhase, currentTurn, coachEnabled, hasSeenPhaseBefore]);
+    setShowSequenceGuide(Boolean(coachEnabled));
+  }, [currentPhase, currentTurn, coachEnabled]);
 
   const toggleExpandRule = (id: string) => {
     setExpandedRuleIds((prev) => ({ ...prev, [id]: !prev[id] }));

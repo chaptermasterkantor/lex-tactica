@@ -28,7 +28,7 @@ export const KeywordBadge: React.FC<KeywordBadgeProps> = ({
   variant = 'unit_keyword',
   customDescription,
   customLabel,
-  coachUnderline = false,
+  coachUnderline = true,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [pinnedByClick, setPinnedByClick] = useState(false);
