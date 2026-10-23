@@ -37,6 +37,49 @@ function selectEquippedWeapons(
 }
 
 /**
+ * Resolves the number of a particular weapon equipped across models in a unit.
+ * Priority:
+ * 1. Explicit `equippedWeaponCounts[weapon.id]` in RosterUnit.
+ * 2. Single-model units (Characters, Vehicles, Monsters): default 1.
+ * 3. Squads: if weapon is part of base loadout, default to `startingModels` minus any
+ *    special replacement weapons of the same type (ranged/melee). If heavy/special weapon, default 1.
+ */
+function resolveWeaponCount(
+  weapon: WeaponProfile,
+  rosterUnit: RosterUnit,
+  datasheet: Datasheet
+): number {
+  if (rosterUnit.equippedWeaponCounts && rosterUnit.equippedWeaponCounts[weapon.id] !== undefined) {
+    return Math.max(0, rosterUnit.equippedWeaponCounts[weapon.id]);
+  }
+  const startingModels = rosterUnit.startingModels || 1;
+  if (startingModels <= 1) {
+    return 1;
+  }
+  const baseLoadout = (datasheet.loadout || '').toLowerCase();
+  const wBaseName = weapon.name.split(' - ')[0].trim().toLowerCase();
+  const isBaseLoadout = baseLoadout.includes(wBaseName);
+
+  if (isBaseLoadout) {
+    const sameTypeWeapons = weapon.type === 'Melee' ? datasheet.meleeWeapons : datasheet.rangedWeapons;
+    const equippedIds = rosterUnit.equippedWeaponIds ?? sameTypeWeapons.map((x) => x.id);
+    const nonBaseEquipped = sameTypeWeapons.filter(
+      (sw) =>
+        sw.id !== weapon.id &&
+        equippedIds.includes(sw.id) &&
+        !baseLoadout.includes(sw.name.split(' - ')[0].trim().toLowerCase())
+    );
+    const distinctReplacements = new Set(
+      nonBaseEquipped.map((sw) => sw.name.split(' - ')[0].trim().toLowerCase())
+    );
+    return Math.max(1, startingModels - distinctReplacements.size);
+  }
+
+  // Heavy / Special weapon default in a squad
+  return 1;
+}
+
+/**
  * Checks whether an optional Wargear ability should be active based on the unit's equipped weapons
  * and wargear options.
  *
@@ -476,32 +519,33 @@ export function buildCompositeUnits(
     // Weapons (Equipped vs All)
     const buildWeaponEntries = (
       weapons: WeaponProfile[],
-      ownerName: string,
-      ownerInstanceId: string,
+      ownerRosterUnit: RosterUnit,
+      ownerDatasheet: Datasheet,
       isOwnerDestroyed: boolean
     ): CompositeWeaponEntry[] =>
       weapons.map((weapon) => ({
         weapon,
-        ownerName,
-        ownerInstanceId,
+        ownerName: ownerDatasheet.name,
+        ownerInstanceId: ownerRosterUnit.instanceId,
         isOwnerDestroyed,
+        count: resolveWeaponCount(weapon, ownerRosterUnit, ownerDatasheet),
       }));
 
     const allRangedWeapons: CompositeWeaponEntry[] = [
-      ...buildWeaponEntries(primaryDatasheet.rangedWeapons, primaryDatasheet.name, unit.instanceId, !isBodyguardAlive),
+      ...buildWeaponEntries(primaryDatasheet.rangedWeapons, unit, primaryDatasheet, !isBodyguardAlive),
       ...(attachedLeader
         ? buildWeaponEntries(
             attachedLeader.datasheet.rangedWeapons,
-            attachedLeader.datasheet.name,
-            attachedLeader.rosterUnit.instanceId,
+            attachedLeader.rosterUnit,
+            attachedLeader.datasheet,
             isLeaderDead
           )
         : []),
       ...(attachedSupport
         ? buildWeaponEntries(
             attachedSupport.datasheet.rangedWeapons,
-            attachedSupport.datasheet.name,
-            attachedSupport.rosterUnit.instanceId,
+            attachedSupport.rosterUnit,
+            attachedSupport.datasheet,
             isSupportDead
           )
         : []),
@@ -510,8 +554,8 @@ export function buildCompositeUnits(
     const equippedRangedWeapons: CompositeWeaponEntry[] = [
       ...buildWeaponEntries(
         selectEquippedWeapons(primaryDatasheet.rangedWeapons, unit.equippedWeaponIds),
-        primaryDatasheet.name,
-        unit.instanceId,
+        unit,
+        primaryDatasheet,
         !isBodyguardAlive
       ),
       ...(attachedLeader
@@ -520,8 +564,8 @@ export function buildCompositeUnits(
               attachedLeader.datasheet.rangedWeapons,
               attachedLeader.rosterUnit.equippedWeaponIds
             ),
-            attachedLeader.datasheet.name,
-            attachedLeader.rosterUnit.instanceId,
+            attachedLeader.rosterUnit,
+            attachedLeader.datasheet,
             isLeaderDead
           )
         : []),
@@ -531,28 +575,28 @@ export function buildCompositeUnits(
               attachedSupport.datasheet.rangedWeapons,
               attachedSupport.rosterUnit.equippedWeaponIds
             ),
-            attachedSupport.datasheet.name,
-            attachedSupport.rosterUnit.instanceId,
+            attachedSupport.rosterUnit,
+            attachedSupport.datasheet,
             isSupportDead
           )
         : []),
     ];
 
     const allMeleeWeapons: CompositeWeaponEntry[] = [
-      ...buildWeaponEntries(primaryDatasheet.meleeWeapons, primaryDatasheet.name, unit.instanceId, !isBodyguardAlive),
+      ...buildWeaponEntries(primaryDatasheet.meleeWeapons, unit, primaryDatasheet, !isBodyguardAlive),
       ...(attachedLeader
         ? buildWeaponEntries(
             attachedLeader.datasheet.meleeWeapons,
-            attachedLeader.datasheet.name,
-            attachedLeader.rosterUnit.instanceId,
+            attachedLeader.rosterUnit,
+            attachedLeader.datasheet,
             isLeaderDead
           )
         : []),
       ...(attachedSupport
         ? buildWeaponEntries(
             attachedSupport.datasheet.meleeWeapons,
-            attachedSupport.datasheet.name,
-            attachedSupport.rosterUnit.instanceId,
+            attachedSupport.rosterUnit,
+            attachedSupport.datasheet,
             isSupportDead
           )
         : []),
@@ -561,8 +605,8 @@ export function buildCompositeUnits(
     const equippedMeleeWeapons: CompositeWeaponEntry[] = [
       ...buildWeaponEntries(
         selectEquippedWeapons(primaryDatasheet.meleeWeapons, unit.equippedWeaponIds),
-        primaryDatasheet.name,
-        unit.instanceId,
+        unit,
+        primaryDatasheet,
         !isBodyguardAlive
       ),
       ...(attachedLeader
@@ -571,8 +615,8 @@ export function buildCompositeUnits(
               attachedLeader.datasheet.meleeWeapons,
               attachedLeader.rosterUnit.equippedWeaponIds
             ),
-            attachedLeader.datasheet.name,
-            attachedLeader.rosterUnit.instanceId,
+            attachedLeader.rosterUnit,
+            attachedLeader.datasheet,
             isLeaderDead
           )
         : []),
@@ -582,8 +626,8 @@ export function buildCompositeUnits(
               attachedSupport.datasheet.meleeWeapons,
               attachedSupport.rosterUnit.equippedWeaponIds
             ),
-            attachedSupport.datasheet.name,
-            attachedSupport.rosterUnit.instanceId,
+            attachedSupport.rosterUnit,
+            attachedSupport.datasheet,
             isSupportDead
           )
         : []),

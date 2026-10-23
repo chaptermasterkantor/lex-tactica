@@ -153,13 +153,20 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     const defaultModels = ds.costTiers[0]?.modelsCount ?? 1;
     const expectedPts = getExpectedPointsForUnitCopy(ds, defaultModels, existingCopies + 1);
 
+    const allWeapons = [...ds.rangedWeapons, ...ds.meleeWeapons];
+    const defaultCounts: Record<string, number> = {};
+    for (const w of allWeapons) {
+      defaultCounts[w.id] = defaultModels;
+    }
+
     const newUnit: RosterUnit = {
       instanceId: `unit_${Date.now()}_${roster.units.length + 1}`,
       datasheetId: ds.id,
       startingModels: defaultModels,
       startingWoundsPerModel: ds.models[0]?.W ?? 1,
       points: expectedPts,
-      equippedWeaponIds: [...ds.rangedWeapons, ...ds.meleeWeapons].map((w) => w.id),
+      equippedWeaponIds: allWeapons.map((w) => w.id),
+      equippedWeaponCounts: defaultCounts,
       enhancementIds: [],
       initialStatus: 'on_battlefield',
     };
@@ -692,39 +699,101 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                         </div>
                       )}
 
-                      {/* Equipped Weapons Checkboxes */}
+                      {/* Equipped Weapons Checkboxes & Quantity Controls */}
                       {isWeaponsOpen && (
                         <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-2">
                           <div className="text-xs font-bold text-slate-300">
-                            Select Equipped Weapons for {ds.name}:
+                            Select Equipped Weapons & Quantities for {ds.name}:
                           </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                          <div className="space-y-1.5">
                             {allUnitWeapons.map((w) => {
                               const currentEquipped =
                                 unit.equippedWeaponIds ?? allUnitWeapons.map((x) => x.id);
                               const checked = currentEquipped.includes(w.id);
+                              const currentCounts = unit.equippedWeaponCounts ?? {};
+                              const countVal =
+                                currentCounts[w.id] !== undefined
+                                  ? currentCounts[w.id]
+                                  : checked
+                                  ? unit.startingModels > 1
+                                    ? 1
+                                    : 1
+                                  : 0;
+
+                              const updateWeapon = (nextChecked: boolean, nextCount?: number) => {
+                                const nextIds = nextChecked
+                                  ? checked
+                                    ? currentEquipped
+                                    : [...currentEquipped, w.id]
+                                  : currentEquipped.filter((id) => id !== w.id);
+
+                                const nextCounts = { ...currentCounts };
+                                if (!nextChecked || (nextCount !== undefined && nextCount <= 0)) {
+                                  delete nextCounts[w.id];
+                                } else {
+                                  nextCounts[w.id] = nextCount ?? (countVal > 0 ? countVal : 1);
+                                }
+
+                                handleUpdateUnit(unit.instanceId, (u) => ({
+                                  ...u,
+                                  equippedWeaponIds: nextIds,
+                                  equippedWeaponCounts: nextCounts,
+                                }));
+                              };
+
                               return (
-                                <label
+                                <div
                                   key={w.id}
-                                  className="flex items-center gap-2 text-xs text-slate-200 cursor-pointer"
+                                  className="flex flex-wrap items-center justify-between gap-2 p-1.5 rounded bg-slate-900/60 border border-slate-800/80 text-xs text-slate-200"
                                 >
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() => {
-                                      const next = checked
-                                        ? currentEquipped.filter((id) => id !== w.id)
-                                        : [...currentEquipped, w.id];
-                                      handleUpdateUnit(unit.instanceId, (u) => ({
-                                        ...u,
-                                        equippedWeaponIds: next,
-                                      }));
-                                    }}
-                                  />
-                                  <span>
-                                    {w.name} ({w.type} · A:{w.A} S:{w.S} AP:{w.AP} D:{w.D})
-                                  </span>
-                                </label>
+                                  <label className="flex items-center gap-2 cursor-pointer select-none flex-1 min-w-[200px]">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => updateWeapon(!checked)}
+                                      className="rounded bg-slate-800 border-slate-700 text-amber-500 focus:ring-amber-500/50"
+                                    />
+                                    <span className={checked ? 'font-medium text-slate-100' : 'text-slate-400'}>
+                                      {w.name} ({w.type} · A:{w.A} S:{w.S} AP:{w.AP} D:{w.D})
+                                    </span>
+                                  </label>
+
+                                  {checked && (
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <span className="text-[11px] text-slate-400 mr-1 font-mono">Qty:</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => updateWeapon(countVal > 1, Math.max(1, countVal - 1))}
+                                        disabled={countVal <= 1}
+                                        className="w-7 h-7 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-40 disabled:hover:bg-slate-800 transition font-mono font-bold"
+                                        title="Decrease quantity"
+                                      >
+                                        -
+                                      </button>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max={Math.max(30, unit.startingModels * 2)}
+                                        value={countVal || 1}
+                                        onChange={(e) => {
+                                          const val = parseInt(e.target.value, 10);
+                                          if (!isNaN(val) && val >= 1) {
+                                            updateWeapon(true, val);
+                                          }
+                                        }}
+                                        className="w-12 h-7 text-center rounded bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs focus:border-amber-500 focus:outline-none"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => updateWeapon(true, countVal + 1)}
+                                        className="w-7 h-7 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-200 transition font-mono font-bold"
+                                        title="Increase quantity"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               );
                             })}
                           </div>

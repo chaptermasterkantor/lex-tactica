@@ -546,6 +546,12 @@ export const CompositeUnitCard: React.FC<CompositeUnitCardProps> = ({
                 >
                   <td className="py-1.5 px-2.5">
                     <div className="flex flex-wrap items-center gap-1.5">
+                      <span
+                        className="inline-flex items-center justify-center min-w-[22px] px-1.5 py-0.5 text-[11px] font-mono font-bold rounded bg-slate-800/90 border border-slate-700/80 text-amber-300 shrink-0"
+                        title={`${entry.count ?? 1} equipped in unit`}
+                      >
+                        {entry.count ?? 1}×
+                      </span>
                       <span className="font-semibold text-slate-100">{weapon.name}</span>
                       {ownerName !== primaryDatasheet.name && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">

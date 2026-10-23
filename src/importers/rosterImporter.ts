@@ -49,18 +49,37 @@ function inferBattleSize(totalPoints: number): BattleSize {
   return 'onslaught';
 }
 
+export interface RawWeaponEntry {
+  name: string;
+  count?: number;
+}
+
 /**
- * Matches weapon names from an imported unit selection against the Datasheet's ranged & melee weapons.
+ * Matches weapon names and quantities from an imported unit selection against the Datasheet's weapons.
  */
-function matchEquippedWeaponIds(rawWeaponNames: string[], datasheet: Datasheet): string[] {
+export function matchEquippedWeaponData(
+  rawWeapons: RawWeaponEntry[],
+  datasheet: Datasheet,
+  startingModels: number
+): { equippedWeaponIds: string[]; equippedWeaponCounts: Record<string, number> } {
   const allWeapons = [...datasheet.rangedWeapons, ...datasheet.meleeWeapons];
-  if (rawWeaponNames.length === 0) {
-    return allWeapons.map((w) => w.id);
+  if (rawWeapons.length === 0) {
+    const ids = allWeapons.map((w) => w.id);
+    const counts: Record<string, number> = {};
+    for (const id of ids) {
+      counts[id] = startingModels;
+    }
+    return { equippedWeaponIds: ids, equippedWeaponCounts: counts };
   }
+
   const matchedIds = new Set<string>();
-  for (const rawW of rawWeaponNames) {
-    const normW = normalizeLookupName(rawW);
+  const counts: Record<string, number> = {};
+
+  for (const raw of rawWeapons) {
+    const normW = normalizeLookupName(raw.name);
     if (!normW) continue;
+    const rawQty = raw.count && raw.count > 0 ? raw.count : undefined;
+
     for (const w of allWeapons) {
       const baseWeaponName = normalizeLookupName(w.name.split(' - ')[0]);
       const fullWeaponName = normalizeLookupName(w.name);
@@ -73,9 +92,13 @@ function matchEquippedWeaponIds(rawWeaponNames: string[], datasheet: Datasheet):
         (normW.includes('power sword') && baseWeaponName.includes('power weapon'))
       ) {
         matchedIds.add(w.id);
+        if (rawQty !== undefined) {
+          counts[w.id] = (counts[w.id] ?? 0) + rawQty;
+        }
       }
     }
   }
+
   // Always include standard default melee weapon (e.g. Close combat weapon) if no melee weapon was matched
   const hasMelee = [...matchedIds].some((id) =>
     datasheet.meleeWeapons.some((mw) => mw.id === id)
@@ -84,10 +107,35 @@ function matchEquippedWeaponIds(rawWeaponNames: string[], datasheet: Datasheet):
     const defaultMelee =
       datasheet.meleeWeapons.find((w) => /close combat weapon|armoured hull|combat weapon/i.test(w.name)) ??
       datasheet.meleeWeapons[0];
-    if (defaultMelee) matchedIds.add(defaultMelee.id);
+    if (defaultMelee) {
+      matchedIds.add(defaultMelee.id);
+      counts[defaultMelee.id] = startingModels;
+    }
   }
 
-  return matchedIds.size > 0 ? [...matchedIds] : allWeapons.map((w) => w.id);
+  const equippedWeaponIds = matchedIds.size > 0 ? [...matchedIds] : allWeapons.map((w) => w.id);
+
+  // For any matched weapon that didn't have an explicit count:
+  for (const id of equippedWeaponIds) {
+    if (counts[id] === undefined) {
+      const w = allWeapons.find((x) => x.id === id);
+      const isBase = w ? (datasheet.loadout || '').toLowerCase().includes(w.name.toLowerCase().split(' - ')[0]) : false;
+      counts[id] = startingModels > 1 ? (isBase ? startingModels : 1) : 1;
+    }
+  }
+
+  return { equippedWeaponIds, equippedWeaponCounts: counts };
+}
+
+/**
+ * Matches weapon names from an imported unit selection against the Datasheet's ranged & melee weapons.
+ */
+function matchEquippedWeaponIds(rawWeaponNames: string[], datasheet: Datasheet): string[] {
+  return matchEquippedWeaponData(
+    rawWeaponNames.map((name) => ({ name })),
+    datasheet,
+    1
+  ).equippedWeaponIds;
 }
 
 /**
@@ -165,26 +213,28 @@ export function importFromNewRecruitJson(
 
           // Count models & collect weapon / enhancement names
           let modelCount = Number(sel.number) || 1;
-          const weaponNames: string[] = [];
+          const rawWeapons: RawWeaponEntry[] = [];
           const unitEnhancementIds: string[] = [];
 
-          const inspectChildren = (children: any[], depth = 0) => {
+          const inspectChildren = (children: any[], depth = 0, parentModelQty = 1) => {
             let subModels = 0;
             for (const ch of children ?? []) {
               const chName = ch.name || '';
               const chType = (ch.type || '').toLowerCase();
+              const chNum = Number(ch.number) || 1;
               if (chType === 'model') {
-                subModels += Number(ch.number) || 1;
+                subModels += chNum;
               }
               const matchedEnh = enhancements.find(
                 (e) => normalizeLookupName(e.name) === normalizeLookupName(chName)
               );
               if (matchedEnh && !unitEnhancementIds.includes(matchedEnh.id)) {
                 unitEnhancementIds.push(matchedEnh.id);
-              } else {
-                weaponNames.push(chName);
+              } else if (chType !== 'model') {
+                const effectiveCount = chNum > 1 ? chNum : parentModelQty;
+                rawWeapons.push({ name: chName, count: effectiveCount });
               }
-              inspectChildren(ch.selections, depth + 1);
+              inspectChildren(ch.selections, depth + 1, chType === 'model' ? chNum : parentModelQty);
             }
             if (depth === 0 && subModels > 0) {
               modelCount = subModels;
@@ -195,6 +245,7 @@ export function importFromNewRecruitJson(
           const importedPts = calcPoints(sel);
           const fallbackPts = getExpectedPointsForUnitCopy(ds, modelCount, copyNum);
           const primaryModel = ds.models[0];
+          const weaponData = matchEquippedWeaponData(rawWeapons, ds, modelCount);
 
           units.push({
             instanceId: `unit_${Date.now()}_${units.length + 1}`,
@@ -203,7 +254,8 @@ export function importFromNewRecruitJson(
             startingModels: modelCount,
             startingWoundsPerModel: primaryModel?.W ?? 1,
             points: importedPts > 0 ? importedPts : fallbackPts,
-            equippedWeaponIds: matchEquippedWeaponIds(weaponNames, ds),
+            equippedWeaponIds: weaponData.equippedWeaponIds,
+            equippedWeaponCounts: weaponData.equippedWeaponCounts,
             enhancementIds: unitEnhancementIds,
             initialStatus: 'on_battlefield',
           });
@@ -337,13 +389,19 @@ export function importFromPlainTextList(
 
   let currentUnit: RosterUnit | undefined;
   let currentUnitDs: Datasheet | undefined;
-  let currentWeaponNames: string[] = [];
+  let currentWeapons: RawWeaponEntry[] = [];
 
   const flushUnitWeapons = () => {
     if (currentUnit && currentUnitDs) {
-      currentUnit.equippedWeaponIds = matchEquippedWeaponIds(currentWeaponNames, currentUnitDs);
+      const weaponData = matchEquippedWeaponData(
+        currentWeapons,
+        currentUnitDs,
+        currentUnit.startingModels
+      );
+      currentUnit.equippedWeaponIds = weaponData.equippedWeaponIds;
+      currentUnit.equippedWeaponCounts = weaponData.equippedWeaponCounts;
     }
-    currentWeaponNames = [];
+    currentWeapons = [];
   };
 
   for (const line of lines) {
@@ -362,18 +420,18 @@ export function importFromPlainTextList(
     if (/^[•\-*]\s+/.test(line) && currentUnit) {
       const cleanBullet = line.replace(/^[•\-*]\s+/, '').replace(/^\d+x?\s+/i, '');
       const countMatch = line.match(/^[•\-*]\s+(\d+)x?\s+/i);
+      const parsedCount = countMatch ? parseInt(countMatch[1], 10) : 1;
       if (countMatch && currentUnitDs && currentUnitDs.models.length > 0) {
-        const num = parseInt(countMatch[1], 10);
         if (
-          num > currentUnit.startingModels &&
+          parsedCount > currentUnit.startingModels &&
           normalizeLookupName(cleanBullet).includes(
             normalizeLookupName(currentUnitDs.models[0].name)
           )
         ) {
-          currentUnit.startingModels = num;
+          currentUnit.startingModels = parsedCount;
         }
       }
-      currentWeaponNames.push(cleanBullet);
+      currentWeapons.push({ name: cleanBullet, count: parsedCount });
       continue;
     }
 
@@ -382,7 +440,7 @@ export function importFromPlainTextList(
     const pointsVal = ptsMatch ? parseInt(ptsMatch[1] || ptsMatch[2], 10) : 0;
 
     const leadingCountMatch = line.match(/^(\d+)x?\s+(.+)/i);
-    const bracketCountMatch = line.match(/\((?:x|×)?(\d+)\)/i);
+    const bracketCountMatch = line.match(/[\(\[](?:x|×)?(\d+)(?:\s*models?)?[\)\]]/i);
 
     const candidateName = line
       .replace(/^(\d+)x?\s+/i, '')
@@ -419,7 +477,12 @@ export function importFromPlainTextList(
       };
       units.push(currentUnit);
     } else if (currentUnit) {
-      currentWeaponNames.push(line);
+      const lineCountMatch = line.match(/^(\d+)x?\s+/i);
+      const parsedCount = lineCountMatch ? parseInt(lineCountMatch[1], 10) : 1;
+      currentWeapons.push({
+        name: line.replace(/^(\d+)x?\s+/i, ''),
+        count: parsedCount,
+      });
     }
   }
   flushUnitWeapons();

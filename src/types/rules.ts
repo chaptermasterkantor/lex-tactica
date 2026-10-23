@@ -248,6 +248,7 @@ export interface RosterUnit {
   startingWoundsPerModel: number;
   points: number;
   equippedWeaponIds?: string[];
+  equippedWeaponCounts?: Record<string, number>;
   enhancementIds: string[];
   attachedLeaderInstanceId?: string;
   attachedSupportInstanceId?: string;
@@ -438,6 +439,7 @@ export interface CompositeWeaponEntry {
   ownerName: string;
   ownerInstanceId: string;
   isOwnerDestroyed: boolean;
+  count: number;
 }
 
 export interface CompositeUnit {

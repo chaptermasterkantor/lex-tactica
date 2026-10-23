@@ -24,7 +24,11 @@
         "000002677_2_1"
       ],
       "enhancementIds": [],
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000002677_1_1": 1,
+        "000002677_2_1": 1
+      }
     },
     {
       "instanceId": "cf2k_unit_2",
@@ -37,7 +41,11 @@
         "000001165_2_1"
       ],
       "enhancementIds": [],
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000001165_1_1": 1,
+        "000001165_2_1": 1
+      }
     },
     {
       "instanceId": "cf2k_unit_3",
@@ -52,7 +60,11 @@
       "enhancementIds": [
         "000011200003"
       ],
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000000135_4_1": 1,
+        "000000135_6_1": 1
+      }
     },
     {
       "instanceId": "cf2k_unit_4",
@@ -65,7 +77,11 @@
         "000000112_2_1"
       ],
       "enhancementIds": [],
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000000112_1_1": 1,
+        "000000112_2_1": 1
+      }
     },
     {
       "instanceId": "cf2k_unit_5",
@@ -83,7 +99,16 @@
         "000001157_10_1"
       ],
       "enhancementIds": [],
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000001157_1_1": 5,
+        "000001157_2_1": 5,
+        "000001157_3_2": 5,
+        "000001157_4_1": 1,
+        "000001157_5_2": 1,
+        "000001157_9_1": 1,
+        "000001157_10_1": 5
+      }
     },
     {
       "instanceId": "cf2k_unit_6",
@@ -97,7 +122,11 @@
       ],
       "enhancementIds": [],
       "attachedSupportInstanceId": "cf2k_unit_2",
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000000071_1_1": 6,
+        "000000071_5_1": 6
+      }
     },
     {
       "instanceId": "cf2k_unit_7",
@@ -111,7 +140,12 @@
         "000004231_3_1"
       ],
       "enhancementIds": [],
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000004231_1_1": 3,
+        "000004231_2_1": 3,
+        "000004231_3_1": 3
+      }
     },
     {
       "instanceId": "cf2k_unit_8",
@@ -126,7 +160,13 @@
         "000004249_6_1"
       ],
       "enhancementIds": [],
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000004249_1_1": 3,
+        "000004249_2_1": 3,
+        "000004249_3_2": 3,
+        "000004249_6_1": 3
+      }
     },
     {
       "instanceId": "cf2k_unit_9",
@@ -141,7 +181,13 @@
         "000001160_9_1"
       ],
       "enhancementIds": [],
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000001160_1_1": 5,
+        "000001160_2_1": 4,
+        "000001160_3_1": 1,
+        "000001160_9_1": 5
+      }
     },
     {
       "instanceId": "cf2k_unit_10",
@@ -159,7 +205,14 @@
       "enhancementIds": [],
       "attachedLeaderInstanceId": "cf2k_unit_3",
       "attachedSupportInstanceId": "cf2k_unit_1",
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000001183_1_1": 1,
+        "000001183_2_1": 1,
+        "000001183_3_2": 1,
+        "000001183_5_1": 9,
+        "000001183_8_1": 10
+      }
     },
     {
       "instanceId": "cf2k_unit_11",
@@ -174,7 +227,12 @@
       ],
       "enhancementIds": [],
       "attachedLeaderInstanceId": "cf2k_unit_4",
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000000147_1_1": 10,
+        "000000147_4_1": 9,
+        "000000147_5_1": 1
+      }
     },
     {
       "instanceId": "cf2k_unit_12",
@@ -190,7 +248,14 @@
         "000000091_5_1"
       ],
       "enhancementIds": [],
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000000091_1_1": 1,
+        "000000091_2_1": 1,
+        "000000091_3_2": 1,
+        "000000091_4_1": 1,
+        "000000091_5_1": 1
+      }
     },
     {
       "instanceId": "cf2k_unit_13",
@@ -205,7 +270,13 @@
         "000002711_5_1"
       ],
       "enhancementIds": [],
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000002711_1_1": 1,
+        "000002711_2_1": 1,
+        "000002711_4_1": 1,
+        "000002711_5_1": 1
+      }
     },
     {
       "instanceId": "cf2k_unit_14",
@@ -222,7 +293,15 @@
         "000002722_7_1"
       ],
       "enhancementIds": [],
-      "initialStatus": "on_battlefield"
+      "initialStatus": "on_battlefield",
+      "equippedWeaponCounts": {
+        "000002722_1_1": 1,
+        "000002722_3_1": 1,
+        "000002722_4_1": 1,
+        "000002722_5_2": 1,
+        "000002722_6_1": 1,
+        "000002722_7_1": 1
+      }
     }
   ]
 }
