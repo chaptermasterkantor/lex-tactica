@@ -22,6 +22,65 @@ export const PHASE_LABELS: Record<Phase, string> = {
   any: 'Any Phase',
 };
 
+export interface PhaseThemeColor {
+  activePill: string;
+  nextButton: string;
+  inactiveIcon: string;
+}
+
+export const PHASE_THEME_COLORS: Record<Phase, PhaseThemeColor> = {
+  command: {
+    activePill: 'bg-purple-600 text-white border-purple-400 font-bold shadow',
+    nextButton: 'bg-purple-600 hover:bg-purple-500 text-white shadow-md',
+    inactiveIcon: 'text-purple-400',
+  },
+  movement: {
+    activePill: 'bg-emerald-500 text-slate-950 border-emerald-300 font-bold shadow',
+    nextButton: 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md',
+    inactiveIcon: 'text-emerald-400',
+  },
+  shooting: {
+    activePill: 'bg-orange-500 text-slate-950 border-orange-300 font-bold shadow',
+    nextButton: 'bg-orange-500 hover:bg-orange-400 text-slate-950 shadow-md',
+    inactiveIcon: 'text-orange-400',
+  },
+  charge: {
+    activePill: 'bg-yellow-400 text-slate-950 border-yellow-300 font-bold shadow',
+    nextButton: 'bg-yellow-400 hover:bg-yellow-300 text-slate-950 shadow-md',
+    inactiveIcon: 'text-yellow-400',
+  },
+  fight: {
+    activePill: 'bg-red-600 text-white border-red-400 font-bold shadow',
+    nextButton: 'bg-red-600 hover:bg-red-500 text-white shadow-md',
+    inactiveIcon: 'text-red-400',
+  },
+  pre_game: {
+    activePill: 'bg-sky-500 text-slate-950 border-sky-300 font-bold shadow',
+    nextButton: 'bg-sky-500 hover:bg-sky-400 text-slate-950 shadow-md',
+    inactiveIcon: 'text-sky-400',
+  },
+  start_of_round: {
+    activePill: 'bg-teal-500 text-slate-950 border-teal-300 font-bold shadow',
+    nextButton: 'bg-teal-500 hover:bg-teal-400 text-slate-950 shadow-md',
+    inactiveIcon: 'text-teal-400',
+  },
+  end_of_turn: {
+    activePill: 'bg-indigo-600 text-white border-indigo-400 font-bold shadow',
+    nextButton: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md',
+    inactiveIcon: 'text-indigo-400',
+  },
+  end_of_round: {
+    activePill: 'bg-slate-300 text-slate-950 border-slate-200 font-bold shadow',
+    nextButton: 'bg-slate-300 hover:bg-slate-200 text-slate-950 shadow-md',
+    inactiveIcon: 'text-slate-400',
+  },
+  any: {
+    activePill: 'bg-amber-400 text-slate-950 border-amber-300 font-bold shadow',
+    nextButton: 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-md',
+    inactiveIcon: 'text-amber-400',
+  },
+};
+
 export interface StepDescriptor {
   battleRound: number;
   currentTurn: 'your_turn' | 'opponent_turn';

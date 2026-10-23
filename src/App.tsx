@@ -41,6 +41,7 @@ import {
   buildGameStepSequence,
   createInitialGameSession,
   PHASE_LABELS,
+  PHASE_THEME_COLORS,
   transitionGameSessionStep,
 } from './engine/gameSessionEngine';
 import type {
@@ -943,7 +944,10 @@ export const App: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleAdvanceStep(nextStep)}
-                className="min-h-[44px] inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-[#eab308] hover:bg-amber-400 text-slate-950 shadow-md transition"
+                className={`min-h-[44px] inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition shadow-md ${
+                  PHASE_THEME_COLORS[nextStep.currentPhase]?.nextButton ??
+                  'bg-[#eab308] hover:bg-amber-400 text-slate-950'
+                }`}
               >
                 <span>
                   Next: {PHASE_LABELS[nextStep.currentPhase].replace(' Phase', '')}
@@ -981,6 +985,7 @@ export const App: React.FC = () => {
               ).map((item) => {
                 const Icon = item.icon;
                 const isActive = session.currentPhase === item.id;
+                const theme = PHASE_THEME_COLORS[item.id];
                 return (
                   <button
                     key={item.id}
@@ -988,11 +993,11 @@ export const App: React.FC = () => {
                     onClick={() => handleJumpToPhase(item.id)}
                     className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition ${
                       isActive
-                        ? 'bg-amber-400 text-slate-950 border-amber-300 font-bold shadow'
+                        ? theme?.activePill ?? 'bg-amber-400 text-slate-950 border-amber-300 font-bold shadow'
                         : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white'
                     }`}
                   >
-                    <Icon className="w-3 h-3" />
+                    <Icon className={`w-3 h-3 ${isActive ? '' : theme?.inactiveIcon ?? ''}`} />
                     <span>{item.label}</span>
                   </button>
                 );
@@ -1354,7 +1359,10 @@ export const App: React.FC = () => {
             <button
               type="button"
               onClick={() => handleAdvanceStep(nextStep)}
-              className="min-h-[44px] px-3.5 rounded-xl bg-[#eab308] hover:bg-amber-400 text-slate-950 font-extrabold text-xs inline-flex items-center justify-center gap-1 shadow-md transition"
+              className={`min-h-[44px] px-3.5 rounded-xl font-extrabold text-xs inline-flex items-center justify-center gap-1 shadow-md transition ${
+                PHASE_THEME_COLORS[nextStep.currentPhase]?.nextButton ??
+                'bg-[#eab308] hover:bg-amber-400 text-slate-950'
+              }`}
             >
               <span className="truncate max-w-[110px] sm:max-w-none">
                 Next: {PHASE_LABELS[nextStep.currentPhase].replace(' Phase', '')}
