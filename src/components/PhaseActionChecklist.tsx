@@ -11,8 +11,10 @@ import {
   MapPin,
   Crown,
   Shield,
+  GraduationCap,
 } from 'lucide-react';
 import editionRules from '../config/editionRules.json';
+import { PHASE_COACH_TIPS } from '../config/phaseCoachTips';
 import { classifyRuleForPhase, isActiveInPhaseAndTurn } from '../engine/compositeUnitBuilder';
 import type {
   Ability,
@@ -93,12 +95,16 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
   const [showSequenceGuide, setShowSequenceGuide] = useState(
     Boolean(coachEnabled)
   );
+  const [showPhaseTips, setShowPhaseTips] = useState(
+    Boolean(coachEnabled)
+  );
   const [showPassiveBuffs, setShowPassiveBuffs] = useState(false);
 
-  // When Tactical Coach is ON, auto-expand the phase sequence guide whenever entering a phase
+  // When Tactical Coach is ON, auto-expand the phase sequence guide and phase tips whenever entering a phase
   // and re-expand whenever Coach is toggled ON. When Coach is OFF, stay collapsed.
   useEffect(() => {
     setShowSequenceGuide(Boolean(coachEnabled));
+    setShowPhaseTips(Boolean(coachEnabled));
   }, [currentPhase, currentTurn, coachEnabled]);
 
   const toggleExpandRule = (id: string) => {
@@ -258,6 +264,7 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
   });
 
   const currentPhaseConfig = editionRules.phaseSequence.find((p) => p.id === currentPhase);
+  const currentPhaseTips = PHASE_COACH_TIPS[currentPhase] || [];
 
   const getFirstSentence = (text: string) => {
     const clean = text.replace(/\s+/g, ' ').trim();
@@ -305,6 +312,20 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
               <span>Phase Sequence</span>
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => setShowPhaseTips((v) => !v)}
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border transition ${
+              showPhaseTips
+                ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/50'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+            title="Toggle Tactical Coach Phase Tips"
+          >
+            <GraduationCap className="w-3 h-3" />
+            <span>Coach: Phase Tips</span>
+          </button>
         </div>
       </div>
 
@@ -319,6 +340,38 @@ export const PhaseActionChecklist: React.FC<PhaseActionChecklistProps> = ({
               {step}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Collapsible Tactical Coach Phase Tips Box */}
+      {showPhaseTips && currentPhaseTips.length > 0 && (
+        <div className="p-3.5 rounded-lg bg-slate-950/90 border border-emerald-500/50 text-xs text-slate-300 space-y-2.5">
+          <div className="flex items-center gap-1.5 font-bold text-emerald-300 uppercase tracking-wider text-[11px] border-b border-emerald-500/20 pb-1.5">
+            <GraduationCap className="w-3.5 h-3.5 text-emerald-300" />
+            <span>Coach: Phase Tips</span>
+          </div>
+          <div className="space-y-2.5">
+            {currentPhaseTips.map((tip, idx) => (
+              <div key={idx} className="leading-relaxed">
+                <span className="font-bold text-emerald-300">{tip.title}</span>
+                {tip.content ? (
+                  <>
+                    <span className="font-bold text-emerald-300">: </span>
+                    <span className="text-slate-300">{tip.content}</span>
+                  </>
+                ) : null}
+                {tip.bullets && tip.bullets.length > 0 && (
+                  <ul className="mt-1 list-disc list-outside ml-4 space-y-1 text-slate-300">
+                    {tip.bullets.map((bullet, bIdx) => (
+                      <li key={bIdx} className="leading-relaxed">
+                        {bullet}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
